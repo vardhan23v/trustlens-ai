@@ -210,3 +210,12 @@ export interface Demo {
   text: string | null
   image_url: string | null
 }
+
+export type ScoreTier = 'CRITICAL' | 'SUSPICIOUS' | 'UNVERIFIED' | 'CREDIBLE'
+
+export interface AnalysisFilterState {
+  category?: Category
+  severity?: Severity
+  minConfidence?: number
+}
+
