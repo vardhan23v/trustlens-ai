@@ -87,9 +87,10 @@ export default function UploadZone({ file, previewUrl, onFile, disabled }: Props
   return (
     <div>
       <div
+        id="upload-dropzone"
         role="button"
         tabIndex={disabled ? -1 : 0}
-        aria-label="Upload an image, video or audio file: drag and drop, or press Enter to choose a file."
+        aria-label="Upload media file: drag and drop image, video, or audio, or press Enter to browse files."
         aria-disabled={disabled}
         onClick={open}
         onKeyDown={(e) => {
@@ -108,7 +109,7 @@ export default function UploadZone({ file, previewUrl, onFile, disabled }: Props
           setDragging(false)
           if (!disabled) accept(e.dataTransfer.files?.[0])
         }}
-        className={`scan-host ${dragging ? 'scan-loop' : ''} flex min-h-48 cursor-pointer flex-col items-center justify-center gap-4 rounded-xl border border-dashed p-5 text-center transition-colors ${
+        className={`scan-host ${dragging ? 'scan-loop' : ''} flex min-h-48 cursor-pointer flex-col items-center justify-center gap-4 rounded-xl border border-dashed p-5 text-center transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
           dragging ? 'border-accent bg-accent/10' : 'border-border bg-bg/60 hover:border-accent-soft'
         } ${disabled ? 'cursor-not-allowed opacity-60' : ''}`}
       >
