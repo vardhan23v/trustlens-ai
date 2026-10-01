@@ -1,0 +1,125 @@
+{
+  "analysis_mode": "live",
+  "input_type": "text",
+  "classification": "message",
+  "trust_score": 25,
+  "risk_level": "HIGH",
+  "verdict": null,
+  "confidence": null,
+  "extracted": {
+    "classification": "message",
+    "extracted_text": "SBI Alert: Dear customer, your SBI YONO account KYC has expired today. Your account will be blocked within 24 hours. Update KYC immediately by clicking bit.ly/sbi-kyc-2026 and enter the OTP to verify. -SBI",
+    "sender": "SBI",
+    "sender_domain": "",
+    "company": "State Bank of India",
+    "person": "",
+    "claim": "KYC has expired; account will be blocked within 24 hours",
+    "date": "",
+    "urls": ["bit.ly/sbi-kyc-2026"],
+    "phone_numbers": [],
+    "email_addresses": [],
+    "money_amounts": [],
+    "requested_action": "Click the link and enter OTP"
+  },
+  "signals": [
+    {
+      "key": "domain_mismatch",
+      "title": "Link does not match SBI",
+      "severity": "high",
+      "category": "url_domain",
+      "sources": ["RULE"],
+      "explanation": "The message claims to be from State Bank of India, but the link goes to bit.ly, which is not an SBI domain.",
+      "evidence": "\"SBI\" vs bit.ly",
+      "uncertainty": "",
+      "penalty": 25
+    },
+    {
+      "key": "credential_request",
+      "title": "Asks for OTP",
+      "severity": "high",
+      "category": "message_content",
+      "sources": ["RULE", "GEMINI"],
+      "explanation": "Banks never ask customers to enter an OTP on a link sent by SMS; an OTP is what a fraudster needs to complete a transaction.",
+      "evidence": "enter the OTP to verify",
+      "uncertainty": "",
+      "penalty": 20
+    },
+    {
+      "key": "impersonation",
+      "title": "Bank impersonation",
+      "severity": "high",
+      "category": "message_content",
+      "sources": ["RULE", "GEMINI"],
+      "explanation": "The message uses SBI branding and a high-risk request through a channel that cannot be verified.",
+      "evidence": "SBI Alert: Dear customer",
+      "uncertainty": "The sender ID is not visible in pasted text, so the true sender cannot be confirmed.",
+      "penalty": 20
+    },
+    {
+      "key": "kyc_threat",
+      "title": "KYC expiry threat",
+      "severity": "high",
+      "category": "message_content",
+      "sources": ["RULE"],
+      "explanation": "KYC-expiry messages with a link are a common scam pattern; real KYC updates happen in the bank app or branch.",
+      "evidence": "KYC has expired today",
+      "uncertainty": "",
+      "penalty": 15
+    },
+    {
+      "key": "threat",
+      "title": "Account block threat",
+      "severity": "high",
+      "category": "message_content",
+      "sources": ["RULE", "GEMINI"],
+      "explanation": "Threatening to block the account creates fear so the reader acts without checking.",
+      "evidence": "Your account will be blocked within 24 hours",
+      "uncertainty": "",
+      "penalty": 10
+    },
+    {
+      "key": "urgency",
+      "title": "Urgency",
+      "severity": "medium",
+      "category": "message_content",
+      "sources": ["RULE", "GEMINI"],
+      "explanation": "A 24-hour deadline and 'immediately' pressure the reader to act now.",
+      "evidence": "Update KYC immediately",
+      "uncertainty": "",
+      "penalty": 6
+    },
+    {
+      "key": "url_shortener",
+      "title": "Shortened link",
+      "severity": "medium",
+      "category": "url_domain",
+      "sources": ["RULE"],
+      "explanation": "A shortener hides the real destination of the link.",
+      "evidence": "bit.ly/sbi-kyc-2026",
+      "uncertainty": "The final destination of the short link was not opened or checked.",
+      "penalty": 5
+    }
+  ],
+  "score_breakdown": [
+    { "category": "message_content", "raw": 71, "cap": 45, "applied": 45 },
+    { "category": "url_domain", "raw": 30, "cap": 30, "applied": 30 }
+  ],
+  "evidence": [],
+  "recommendation": "Do not click the link or share any OTP. Open the official SBI app or call the number on the back of your card to check your KYC status.",
+  "what_to_verify": [
+    "Check your KYC status inside the official SBI YONO app, not through the link",
+    "Confirm the sender ID with the bank's published SMS headers",
+    "Call the number printed on the back of your card if in doubt"
+  ],
+  "inconsistencies": [
+    "A bank KYC update is requested through a public URL shortener instead of an official bank domain"
+  ],
+  "notes": [
+    "message_content deductions were capped at 45 points"
+  ],
+  "ela": { "status": "not_applicable", "heatmap_b64": null, "region": null, "width": null, "height": null },
+  "gemini_error": null,
+  "agents_used": ["extractor", "analyst"],
+  "caveats": ["Sender identity cannot be verified from text alone"],
+  "disclaimer": "Trust Score is a risk indicator, not proof of authenticity or fraud."
+}

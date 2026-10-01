@@ -1,0 +1,380 @@
+[
+ {
+  "name": "State Bank of India",
+  "aliases": [
+   "sbi",
+   "state bank of india",
+   "yono",
+   "onlinesbi",
+   "sbi card"
+  ],
+  "domains": [
+   "sbi.co.in",
+   "onlinesbi.sbi",
+   "yono.sbi",
+   "bank.sbi",
+   "sbicard.com"
+  ]
+ },
+ {
+  "name": "HDFC Bank",
+  "aliases": [
+   "hdfc",
+   "hdfc bank"
+  ],
+  "domains": [
+   "hdfcbank.com",
+   "hdfc.com"
+  ]
+ },
+ {
+  "name": "ICICI Bank",
+  "aliases": [
+   "icici",
+   "icici bank"
+  ],
+  "domains": [
+   "icicibank.com"
+  ]
+ },
+ {
+  "name": "Axis Bank",
+  "aliases": [
+   "axis bank",
+   "axis"
+  ],
+  "domains": [
+   "axisbank.com"
+  ]
+ },
+ {
+  "name": "Punjab National Bank",
+  "aliases": [
+   "pnb",
+   "punjab national bank"
+  ],
+  "domains": [
+   "pnbindia.in",
+   "netpnb.com"
+  ]
+ },
+ {
+  "name": "Bank of Baroda",
+  "aliases": [
+   "bank of baroda"
+  ],
+  "domains": [
+   "bankofbaroda.in",
+   "bankofbaroda.com",
+   "bobibanking.com"
+  ]
+ },
+ {
+  "name": "Kotak Mahindra Bank",
+  "aliases": [
+   "kotak",
+   "kotak bank"
+  ],
+  "domains": [
+   "kotak.com"
+  ]
+ },
+ {
+  "name": "Canara Bank",
+  "aliases": [
+   "canara bank",
+   "canara"
+  ],
+  "domains": [
+   "canarabank.com",
+   "canarabank.in"
+  ]
+ },
+ {
+  "name": "Paytm",
+  "aliases": [
+   "paytm"
+  ],
+  "domains": [
+   "paytm.com",
+   "paytmbank.com"
+  ]
+ },
+ {
+  "name": "PhonePe",
+  "aliases": [
+   "phonepe"
+  ],
+  "domains": [
+   "phonepe.com"
+  ]
+ },
+ {
+  "name": "Google",
+  "aliases": [
+   "google",
+   "google pay",
+   "gpay",
+   "gmail",
+   "youtube"
+  ],
+  "domains": [
+   "google.com",
+   "google.co.in",
+   "gmail.com",
+   "youtube.com",
+   "goo.gl",
+   "withgoogle.com",
+   "g.co"
+  ]
+ },
+ {
+  "name": "Income Tax Department",
+  "aliases": [
+   "income tax",
+   "income tax department",
+   "e-filing"
+  ],
+  "domains": [
+   "incometax.gov.in",
+   "incometaxindia.gov.in"
+  ]
+ },
+ {
+  "name": "EPFO",
+  "aliases": [
+   "epfo",
+   "provident fund"
+  ],
+  "domains": [
+   "epfindia.gov.in",
+   "epfindia.nic.in"
+  ]
+ },
+ {
+  "name": "IRCTC / Indian Railways",
+  "aliases": [
+   "irctc",
+   "indian railways"
+  ],
+  "domains": [
+   "irctc.co.in",
+   "indianrail.gov.in",
+   "indianrailways.gov.in"
+  ]
+ },
+ {
+  "name": "India Post",
+  "aliases": [
+   "india post",
+   "indiapost",
+   "speed post",
+   "post office",
+   "ippb"
+  ],
+  "domains": [
+   "indiapost.gov.in",
+   "ippbonline.com"
+  ]
+ },
+ {
+  "name": "UIDAI",
+  "aliases": [
+   "uidai",
+   "aadhaar",
+   "aadhar"
+  ],
+  "domains": [
+   "uidai.gov.in"
+  ]
+ },
+ {
+  "name": "NPCI / UPI",
+  "aliases": [
+   "npci",
+   "upi",
+   "bhim"
+  ],
+  "domains": [
+   "npci.org.in",
+   "bhimupi.org.in"
+  ]
+ },
+ {
+  "name": "Reserve Bank of India",
+  "aliases": [
+   "rbi",
+   "reserve bank of india",
+   "reserve bank"
+  ],
+  "domains": [
+   "rbi.org.in"
+  ]
+ },
+ {
+  "name": "SEBI",
+  "aliases": [
+   "sebi"
+  ],
+  "domains": [
+   "sebi.gov.in"
+  ]
+ },
+ {
+  "name": "Amazon",
+  "aliases": [
+   "amazon",
+   "amazon pay"
+  ],
+  "domains": [
+   "amazon.in",
+   "amazon.com",
+   "amzn.to",
+   "amazon.jobs"
+  ]
+ },
+ {
+  "name": "Flipkart",
+  "aliases": [
+   "flipkart"
+  ],
+  "domains": [
+   "flipkart.com",
+   "fkrt.it"
+  ]
+ },
+ {
+  "name": "Microsoft",
+  "aliases": [
+   "microsoft",
+   "outlook",
+   "office 365",
+   "onedrive"
+  ],
+  "domains": [
+   "microsoft.com",
+   "live.com",
+   "outlook.com",
+   "office.com",
+   "aka.ms"
+  ]
+ },
+ {
+  "name": "Apple",
+  "aliases": [
+   "apple",
+   "icloud",
+   "apple id"
+  ],
+  "domains": [
+   "apple.com",
+   "icloud.com"
+  ]
+ },
+ {
+  "name": "TCS",
+  "aliases": [
+   "tcs",
+   "tata consultancy services"
+  ],
+  "domains": [
+   "tcs.com",
+   "tata.com"
+  ]
+ },
+ {
+  "name": "Infosys",
+  "aliases": [
+   "infosys"
+  ],
+  "domains": [
+   "infosys.com"
+  ]
+ },
+ {
+  "name": "Wipro",
+  "aliases": [
+   "wipro"
+  ],
+  "domains": [
+   "wipro.com"
+  ]
+ },
+ {
+  "name": "Accenture",
+  "aliases": [
+   "accenture"
+  ],
+  "domains": [
+   "accenture.com"
+  ]
+ },
+ {
+  "name": "LinkedIn",
+  "aliases": [
+   "linkedin"
+  ],
+  "domains": [
+   "linkedin.com",
+   "lnkd.in"
+  ]
+ },
+ {
+  "name": "Meta / WhatsApp",
+  "aliases": [
+   "whatsapp",
+   "meta",
+   "facebook",
+   "instagram"
+  ],
+  "domains": [
+   "whatsapp.com",
+   "wa.me",
+   "meta.com",
+   "facebook.com",
+   "fb.com",
+   "fb.me",
+   "instagram.com"
+  ]
+ },
+ {
+  "name": "Netflix",
+  "aliases": [
+   "netflix"
+  ],
+  "domains": [
+   "netflix.com"
+  ]
+ },
+ {
+  "name": "Airtel",
+  "aliases": [
+   "airtel"
+  ],
+  "domains": [
+   "airtel.in"
+  ]
+ },
+ {
+  "name": "Jio",
+  "aliases": [
+   "jio",
+   "reliance jio"
+  ],
+  "domains": [
+   "jio.com"
+  ]
+ },
+ {
+  "name": "NMAMIT / Nitte",
+  "aliases": [
+   "nmamit",
+   "nitte",
+   "nmam institute"
+  ],
+  "domains": [
+   "nitte.edu.in",
+   "nmamit.nitte.edu.in"
+  ]
+ }
+]
