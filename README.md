@@ -8,6 +8,8 @@
 ![TypeScript](https://img.shields.io/badge/TypeScript-6-3178C6?logo=typescript&logoColor=white&style=for-the-badge)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-v4-06B6D4?logo=tailwindcss&logoColor=white&style=for-the-badge)
 ![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white&style=for-the-badge)
+![PostgreSQL](https://img.shields.io/badge/Storage-PostgreSQL-4169E1?logo=postgresql&logoColor=white&style=for-the-badge)
+![FFmpeg](https://img.shields.io/badge/Media-FFmpeg-007808?logo=ffmpeg&logoColor=white&style=for-the-badge)
 ![Docker](https://img.shields.io/badge/Deploy-Docker-2496ED?logo=docker&logoColor=white&style=for-the-badge)
 ![Hackathon](https://img.shields.io/badge/ACM%20%C3%97%20MLH%20Hack%20Days%202026-Track%202%3A%20Trust-22D3EE?style=for-the-badge)
 
@@ -24,6 +26,21 @@ Every finding shows what was found, the quoted evidence, and whether it came fro
 Claim, media authenticity and context are answered separately, each with its own confidence.
 
 > Trust should be backed by evidence, not appearance. *Don't just tell users what to trust. Show them why.*
+
+## Features
+
+| Area | What you get |
+|---|---|
+| **Two modes** | NEWS / CLAIM and AI-GENERATED, chosen first and shown for the whole run |
+| **Four inputs** | Image, video, audio, or pasted text — in either mode |
+| **Claim verification** | Claim extracted from the file (OCR, transcript, on-screen text), split into parts, checked against news and fact-check sources; copies from one site count once |
+| **Separate answers** | Claim, media authenticity and context consistency are assessed independently, each with its own confidence |
+| **Synthetic-media check** | EXIF + error-level analysis for images, ffmpeg metadata and keyframe sampling for video, Gemini examination of picture and sound |
+| **AI-written text check** | Quoted traits of AI-style writing; always low confidence, needs about 40 words |
+| **Honest reporting** | Stages listed as they actually ran, each specialist model shown as `MODEL_UNAVAILABLE`, "what would change the assessment", limitations |
+| **PDF report** | Per-mode PDF built from the on-screen analysis |
+| **Stored reports** | Optional PostgreSQL keeps the report (never the upload) so it can be reopened by ID |
+| **Interface** | Mode colours, custom cursor, animated buttons, keyboard shortcuts, paste and page-wide drop, report section navigator, copy summary |
 
 Built at **ACM × MLH Hack Days 2026 — "Build with Gemini"**, Track 2: *Trust in a Synthetic World*.
 
@@ -136,6 +153,26 @@ Text input: in News / Claim the pasted claim goes through the same source verifi
 media axes). In AI-Generated mode Gemini lists quoted traits of AI-style writing; the state is decided in code, needs
 about 40 words, requires at least two quoted traits that really occur in the text, and always carries low confidence,
 because AI-text detection is unreliable. No AI-text detector model is installed.
+
+## Interface
+
+- **Mode colours.** News / Claim is cyan-to-blue and AI-Generated is violet-to-magenta; picking a mode recolours the
+  whole page. Risk colours (green / amber / red) never change.
+- **Cursor.** A dot with a trailing ring that reacts to buttons, text fields and clicks, plus a spotlight that follows
+  the pointer across the background and cards.
+- **Buttons.** One shared button: gradient with a shine sweep, a slight pull toward the pointer, a ripple from the
+  click point, and a pulsing state while analysing.
+- **Getting a file in.** Browse, drop on the upload zone, drop anywhere on the page, or paste a copied image with
+  Ctrl / ⌘ + V. All four use the same type and size checks.
+- **Keyboard shortcuts.** `1` News / Claim · `2` AI-Generated · `Enter` analyse · `Esc` back to mode selection ·
+  `?` show the list. They do not fire while you are typing in the text box.
+- **Reports.** A sticky section navigator (Assessment, Summary, Evidence, Findings, Score, Pipeline), "Copy summary",
+  click-to-copy report ID, a scroll progress line and a back-to-top button.
+- **Waiting.** A spinner, a shimmer and the list of stages this pipeline runs — no percentage, because the server does
+  not report one.
+- **Accessibility.** Pointer effects are off on touch devices and when the system asks for reduced motion; focus rings
+  are visible on every control. No extra frontend packages: effects are CSS plus small React hooks
+  (`CursorFx.tsx`, `Button.tsx`, `PageChrome.tsx`, `SectionNav.tsx`).
 
 ## Storage
 
