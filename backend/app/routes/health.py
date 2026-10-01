@@ -15,4 +15,5 @@ def health():
         "gemini_configured": bool(settings.GEMINI_API_KEY),
         "factcheck_configured": bool(settings.FACTCHECK_API_KEY),
         "crewai_version": version("crewai"),
+        "pdf_writer": "openrouter" if (settings.OPENROUTER_API_KEY and settings.OPENROUTER_REPORT_MODEL) else "direct",
     }

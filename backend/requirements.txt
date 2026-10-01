@@ -11,3 +11,4 @@ pillow
 piexif
 tldextract
 numpy
+reportlab==5.0.1

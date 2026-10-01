@@ -9,6 +9,7 @@ import ElaCompare from './ElaCompare'
 import EvidenceList from './EvidenceList'
 import ExtractedPanel from './ExtractedPanel'
 import ModeBanner from './ModeBanner'
+import PdfButton from './PdfButton'
 import RecommendationBox from './RecommendationBox'
 import RiskBadge from './RiskBadge'
 import SignalCard from './SignalCard'
@@ -87,6 +88,7 @@ export default function ReportView({ report, originalUrl }: Props) {
             </div>
           )}
           <Caveats caveats={report.caveats ?? []} />
+          <PdfButton report={report} />
         </div>
       </div>
 

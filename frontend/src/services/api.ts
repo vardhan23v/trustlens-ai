@@ -92,6 +92,31 @@ export function analyzeDemo(id: string): Promise<TrustReport> {
   return postJson<TrustReport>(`/analyze/demo/${encodeURIComponent(id)}`)
 }
 
+/** Builds the PDF on the backend from the analysis already on screen (nothing is re-analysed) and saves it. */
+export async function downloadPdfReport(report: TrustReport): Promise<void> {
+  let res: Response
+  try {
+    res = await fetch(`${API}/report/pdf`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ report }),
+    })
+  } catch {
+    throw new ApiError('PDF generation is temporarily unavailable. Your TrustLens analysis is still available.')
+  }
+  if (!res.ok) await parse<never>(res)
+  const blob = await res.blob()
+  const stamp = new Date().toISOString().slice(0, 19).replace(/[-:]/g, '').replace('T', '_')
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `TrustLens_Report_${stamp}.pdf`
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 10_000)
+}
+
 export async function analyze(req: AnalyzeRequest): Promise<TrustReport> {
   if (isMock()) {
     await sleep(2000)

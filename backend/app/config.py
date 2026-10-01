@@ -23,6 +23,10 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     LLM_TIMEOUT_S: int = 30
     FLOW_TIMEOUT_S: int = 60
+    # Optional PDF wording layer. Never used for analysis; the PDF works without it.
+    OPENROUTER_API_KEY: str = ""
+    OPENROUTER_REPORT_MODEL: str = ""  # must be a free OpenRouter model id (ends with ":free")
+    OPENROUTER_TIMEOUT_S: int = 25
 
 
 settings = Settings()

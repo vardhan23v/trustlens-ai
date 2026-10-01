@@ -61,10 +61,33 @@ npm run dev                     # http://localhost:5173  (proxies /api → :8000
 ```
 
 API: `GET /api/health` · `POST /api/analyze/image` (multipart `file`) · `POST /api/analyze/text` ·
-`POST /api/analyze/claim` (JSON `{"text"}`) · `GET /api/demos` · `POST /api/analyze/demo/{id}`.
+`POST /api/analyze/claim` (JSON `{"text"}`) · `GET /api/demos` · `POST /api/analyze/demo/{id}` · `POST /api/report/pdf` (JSON `{"report": <TrustReport>}` → PDF).
 
 Deploy: one container (`Dockerfile`) — FastAPI serves the built frontend; `railway.json` sets the health check.
 Deployed on Railway: https://trustlens-ai-production-5b04.up.railway.app
+
+## PDF Trust Report
+
+After any analysis, **Generate PDF Report** downloads `TrustLens_Report_<timestamp>.pdf`
+(sample: [docs/sample_trust_report.pdf](docs/sample_trust_report.pdf)).
+
+```
+Trust Report (already on screen) → POST /api/report/pdf → wording → ReportLab (in memory) → PDF download
+```
+
+- The analysis is the source of truth. Nothing is re-analysed; the endpoint re-derives the score from the posted
+  signals with the real scoring code and refuses a report whose score or risk level does not match.
+- **Default wording ("direct")**: built deterministically from the TrustLens/Gemini analysis. No extra model, no key.
+- **Optional wording layer (OpenRouter)**: set `OPENROUTER_API_KEY` and `OPENROUTER_REPORT_MODEL` to a **free**
+  model id (must end with `:free`; a paid id is never called). The model only rewrites the summary and
+  explanations. Score, risk level, verdict, the signal list with severity and RULE/GEMINI source, recommendation and
+  verification steps are copied from the analysis afterwards, whatever the model returned. Over-claims ("definitely
+  fake"), URLs that are not in the analysis, malformed JSON, timeouts or an unavailable model all fall back to the
+  direct wording. The PDF footer states which wording was used.
+- Keys stay on the server; the PDF is built in memory and never stored.
+- The built-in PDF fonts are Latin-only: text in other scripts is shown as `[non-Latin text]`.
+- Railway variables (optional): `OPENROUTER_API_KEY`, `OPENROUTER_REPORT_MODEL`.
+- Tests: `python tests/test_report_pdf.py` (OpenRouter mocked) and `python tests/score_eval.py`.
 
 ## Trust score — auditable by design
 
