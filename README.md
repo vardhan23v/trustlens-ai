@@ -170,6 +170,23 @@ per category (image forensics 60, visual analysis 70, URL/domain 30, message con
 `rules/scoring.py`, and the report prints the full deduction table. This is explicit rules, not a learned or
 calibrated model, and it does not measure whether a claim is true.
 
+The weights are sized so the number agrees with the assessment beside it:
+
+| Finding | Deduction | Typical result |
+|---|---|---|
+| Edited region found by error-level analysis | 50 | high risk |
+| Strong AI-generation indicators (Gemini and/or the detector) | 60 | high risk |
+| Claim contradicted by sources | 60 | high risk |
+| Claim that no listed source settles | 30 | medium risk, never a clean score |
+| Nothing found and a positive assessment | 0 | 100, low risk |
+
+When the result is undecided and there are no findings at all (for example a video with no checkable claim and no
+indicators), the interface shows **"Not scored"** instead of 100, because a clean number would read as "trusted".
+The API still returns `trust_score`; use `overall_assessment.state` to tell the two cases apart.
+
+Bundled demos: Genuine notice 100 (likely authentic), Edited notice 40 (manipulated), Viral post 40 (misleading
+context).
+
 **Safeguards**
 - All user content is passed to Gemini as data. Text addressed to an AI ("ignore previous instructions…") is itself
   reported as a high-severity prompt-injection signal.
@@ -327,8 +344,9 @@ time and the speech detector is skipped. Details: [docs/DEPLOYMENT.md](docs/DEPL
 - **Claims.** Stance is read from headlines, not article bodies. A claim nobody has written about comes back
   `UNVERIFIED`, which says nothing about whether it is true.
 - **AI-written text.** Detection from style alone is unreliable and always reported with low confidence.
-- **Quota.** On Gemini's free tier the daily request limit is small; when it runs out, results degrade to
-  deterministic and model-only evidence.
+- **Quota.** On Gemini's free tier the daily request limit is small and counted per model. When it runs out the
+  API answers `429`, and results degrade to deterministic and model-only evidence with `gemini_error` set and no
+  score shown. The fix is a key with remaining quota or a different `GEMINI_MODEL`; there is no automatic fallback.
 - **Languages.** Text rules cover English and Hinglish patterns. Other languages depend on Gemini.
 - **Operations.** No authentication, rate limiting, CI or licence file. The in-memory cache is per process, so more
   than one replica would give inconsistent cache hits.
