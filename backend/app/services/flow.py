@@ -110,6 +110,7 @@ class TrustLensFlow(Flow[FlowState]):
         if s.input_type == "claim":
             s.claim_evidence = ClaimEvidence.model_validate(fx.get("claim_evidence") or {})
             s.tool_urls = fx.get("tool_urls") or {}
+            s.tool_errors = fx.get("tool_errors") or []
             s.agents_used.append("claim_verifier")
             return
         if s.input_type == "text":

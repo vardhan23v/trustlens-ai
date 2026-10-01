@@ -1,0 +1,62 @@
+{
+ "model": "gemini-3.5-flash",
+ "recorded_at": "2026-10-01 11:00",
+ "extracted": {
+  "classification": "NOTICE",
+  "extracted_text": "NORTHBRIDGE INSTITUTE OF TECHNOLOGY\nOffice of the Controller of Examinations\nRef: NIT/COE/2026/147\nDate: 22 September 2026\nNOTICE - Odd Semester Examination Schedule\nAll students of 3rd, 5th and 7th semester B.E. are informed that the odd\nsemester examinations will commence on 10 November 2026. Hall tickets will be\navailable on the student portal from 3 November 2026.\nExamination fee: Rs. 4,800 (regular) Last date for payment: 5 October 2026\nPayment mode: UPI to 9876543210@okaxis immediately to avoid late fee of Rs. 500\nStudents with attendance below 75% must contact their Head of Department\nbefore 15 October 2026.\nSd/-\nController of Examinations\nVISUAL_NOTES: none",
+  "sender": "Office of the Controller of Examinations",
+  "sender_domain": "",
+  "company": "NORTHBRIDGE INSTITUTE OF TECHNOLOGY",
+  "person": "",
+  "claim": "",
+  "date": "22 September 2026",
+  "urls": [],
+  "phone_numbers": [],
+  "email_addresses": [
+   "9876543210@okaxis"
+  ],
+  "money_amounts": [
+   "Rs. 4,800",
+   "Rs. 500"
+  ],
+  "requested_action": "Payment of examination fee"
+ },
+ "signal_set": {
+  "signals": [
+   {
+    "key": "financial_request",
+    "title": "Suspicious payment method",
+    "severity": "high",
+    "explanation": "The notice requests examination fees to be paid via a personal or generic UPI ID rather than an official institutional bank account or portal.",
+    "evidence": "Payment mode: UPI to 9876543210@okaxis",
+    "uncertainty": "The institution might have temporarily adopted UPI payments for convenience, though using a standard mobile number UPI is highly unusual for official university transactions."
+   },
+   {
+    "key": "urgency",
+    "title": "Immediate action pressure",
+    "severity": "medium",
+    "explanation": "The document uses urgent language to pressure students into making immediate payments to avoid penalties.",
+    "evidence": "immediately to avoid late fee of Rs. 500",
+    "uncertainty": "Academic institutions do enforce strict deadlines and late fees, which can naturally create a sense of urgency."
+   },
+   {
+    "key": "impersonation",
+    "title": "Implausible payment channel",
+    "severity": "high",
+    "explanation": "An official Controller of Examinations notice typically directs students to an official ERP portal or bank challan rather than a direct UPI address.",
+    "evidence": "Payment mode: UPI to 9876543210@okaxis immediately",
+    "uncertainty": "The college might have partnered with a third-party payment gateway that utilizes this specific UPI handle, though it remains unverified."
+   }
+  ],
+  "inconsistencies": [
+   "The notice instructs students to pay via UPI to a mobile-linked virtual payment address, but states that hall tickets will be available on the 'student portal', where payment features are normally integrated."
+  ],
+  "overall_assessment": "high_risk",
+  "recommendation": "Do not send any money to the UPI address listed in the notice.",
+  "what_to_verify": [
+   "Check the official Northbridge Institute of Technology student portal directly for any active fee payment links.",
+   "Contact the Office of the Controller of Examinations or your Head of Department using trusted, established phone numbers to verify the notice.",
+   "Verify if the UPI ID '9876543210@okaxis' belongs to an official bank account registered under the institution's legal name."
+  ]
+ }
+}

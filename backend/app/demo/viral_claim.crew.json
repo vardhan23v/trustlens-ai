@@ -1,0 +1,24 @@
+{
+ "model": "gemini-3.5-flash-lite",
+ "recorded_at": "2026-10-01 11:03",
+ "claim_evidence": {
+  "claim": "UNESCO has declared \"Jana Gana Mana\" the best national anthem in the world.",
+  "entities": [
+   "UNESCO",
+   "Jana Gana Mana",
+   "India"
+  ],
+  "dates": [],
+  "events": [],
+  "what_to_verify": [
+   "Check official UNESCO announcements or press releases regarding national anthems.",
+   "Search for official statements from the Government of India or Ministry of Culture about UNESCO declaring 'Jana Gana Mana' the best national anthem.",
+   "Look up known viral hoaxes regarding UNESCO declaring various national anthems or national symbols as the 'best in the world'."
+  ],
+  "evidence": []
+ },
+ "tool_urls": {},
+ "tool_errors": [
+  "grounding: Google Search grounding returned 429 (free-tier quota) when this fixture was recorded"
+ ]
+}

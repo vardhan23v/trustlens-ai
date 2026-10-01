@@ -1,0 +1,41 @@
+{
+ "model": "gemini-3.5-flash",
+ "recorded_at": "2026-10-01 10:59",
+ "extracted": {
+  "classification": "Notice",
+  "extracted_text": "NORTHBRIDGE INSTITUTE OF TECHNOLOGY\nOffice of the Controller of Examinations\nRef: NIT/COE/2026/147\nDate: 22 September 2026\nNOTICE - Odd Semester Examination Schedule\nAll students of 3rd, 5th and 7th semester B.E. are informed that the odd semester examinations will commence on 10 November 2026. Hall tickets will be available on the student portal from 3 November 2026.\nExamination fee: Rs. 1,800 (regular) Last date for payment: 20 October 2026\nPayment mode: Student portal only. No other payment channel is authorised.\nStudents with attendance below 75% must contact their Head of Department before 15 October 2026.\nSd/-\nController of Examinations\nVISUAL_NOTES: none",
+  "sender": "Office of the Controller of Examinations",
+  "sender_domain": "",
+  "company": "NORTHBRIDGE INSTITUTE OF TECHNOLOGY",
+  "person": "",
+  "claim": "",
+  "date": "22 September 2026",
+  "urls": [],
+  "phone_numbers": [],
+  "email_addresses": [],
+  "money_amounts": [
+   "Rs. 1,800"
+  ],
+  "requested_action": "Payment of examination fee by 20 October 2026; students with attendance below 75% must contact their Head of Department before 15 October 2026."
+ },
+ "signal_set": {
+  "signals": [
+   {
+    "key": "financial_request",
+    "title": "Examination fee requested",
+    "severity": "low",
+    "explanation": "The notice requests a payment of Rs. 1,800 for regular examination fees by a specific deadline.",
+    "evidence": "Examination fee: Rs. 1,800 (regular) Last date for payment: 20 October 2026",
+    "uncertainty": "This is a standard administrative requirement for university examinations and is highly likely to be genuine if published on the official portal."
+   }
+  ],
+  "inconsistencies": [],
+  "overall_assessment": "unverified",
+  "recommendation": "Verify this schedule and fee requirement directly on the official Northbridge Institute of Technology student portal before making any payments.",
+  "what_to_verify": [
+   "Check the official student portal of Northbridge Institute of Technology for the same notice reference number (NIT/COE/2026/147).",
+   "Confirm the examination fee amount and payment deadline with your department head or the Office of the Controller of Examinations.",
+   "Verify that the payment option is active and matches the specified amount of Rs. 1,800 inside your secure student login area."
+  ]
+ }
+}

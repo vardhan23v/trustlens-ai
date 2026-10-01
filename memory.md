@@ -56,7 +56,7 @@ Read this file at the start of every session. Update the **Status** and **Log** 
 | AI provider | Google Gemini only. Never Claude/OpenAI in app code. |
 | Orchestration | CrewAI: `TrustLensFlow` (Flow) + sequential Crew. Agents: Extractor, Trust Signal Analyst, Claim Verifier. `llm=LLM(model="gemini/<GEMINI_MODEL>")`. No delegation, no hierarchical process, `memory=False`, `max_iter=2`. |
 | Direct SDK use | `google-genai` only for vision extraction (Flow step) and `google_search` grounding (crew tool). Never `google-generativeai`. |
-| Model | `GEMINI_MODEL` env, default `gemini-2.5-flash`, used as `gemini/<name>` in CrewAI `LLM` (verify current name once, record here: ______ ). |
+| Model | `GEMINI_MODEL` env, default `gemini-2.5-flash`, used as `gemini/<name>` in CrewAI `LLM` (verified 1 Oct: `gemini-2.5-flash` returns 404 "no longer available to new users"; using **`gemini-3.6-flash`**, thinking_level=low). |
 | Structured output | Crew tasks: `output_pydantic=` (`Extracted`, `SignalSet`, `ClaimEvidence`); vision: `response_schema=Extracted`. Fallback: parse `result.raw` after stripping fences; retry once; then `gemini_error`. |
 | Grounding | Only in `GroundedSearchTool` (claim crew); separate google-genai call without schema (cannot combine with tools). |
 | Telemetry | `CREWAI_DISABLE_TELEMETRY=true`, `OTEL_SDK_DISABLED=true` set in `config.py` before importing crewai. |
@@ -143,7 +143,7 @@ cd frontend && npm i && npm run dev     # http://localhost:5173
 - ELA thresholds need calibration against the two demo images; set so genuine < medium, edited ≥ high.
 
 ## Status
-Current stage: 1–5 + 8 built, rule-only verified; waiting for GEMINI_API_KEY to verify crew/vision (stages 1,2,6,7) and record fixtures (4)   Last verified: 1 Oct 10:35
+Current stage: 1–6 + 8 done; 7 coded but untested (no FACTCHECK_API_KEY); 9 (Railway) pending user login   Last verified: 1 Oct 11:10
 
 ## Log
 <!-- append: [time] stage N — what changed, what was verified, open issues -->
@@ -159,3 +159,7 @@ Current stage: 1–5 + 8 built, rule-only verified; waiting for GEMINI_API_KEY t
   - Evidence URLs must appear in the per-run tool ledger or they are dropped; grounding redirect links are resolved to the real source URL.
   - Risk floor: a high-severity signal is never shown as LOW (image-forensics cap of 25 alone would give 75 = LOW).
   - Report contract additions: `score_breakdown`, `what_to_verify`, `inconsistencies`, `notes`, `ela.width/height`, signal `uncertainty`.
+- [11:10] Gemini key added. Live text crew verified once on gemini-3.6-flash (Extractor → Analyst, valid `Extracted` + `SignalSet` via output_pydantic, GEMINI signals merged with RULE). Default thinking made a run take 64 s; `thinking_level="low"` brings a call to ~2–3 s.
+- **Quota: this key's free tier is 20 requests/day per model** (quotaId GenerateRequestsPerDayPerProjectPerModel-FreeTier); failed 503 attempts count. 3.6-flash, 3.5-flash and 3.5-flash-lite are exhausted for today. Live analysis will return rule-only reports until the quota resets or a billed/second key is used.
+- Fixtures recorded from real Gemini output: scam_sms (3.6-flash), injection, edited_notice, genuine_notice (3.5-flash), viral_claim (3.5-flash-lite). Cached demo results: genuine 94 LOW, edited 30 HIGH, scam SMS 25 HIGH, injection 25 HIGH, claim UNVERIFIED.
+- Open: claim demo has NO evidence — Google Search grounding returned 429 on the free tier and no FACTCHECK_API_KEY is set, so the Claim Verifier tools have never returned a source; verdict logic (DEBUNKED/VERIFIED) is untested against live data. Live image path (vision + analyst through the HTTP endpoint) was exercised only via the recorder script, not via /api/analyze/image.

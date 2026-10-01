@@ -135,7 +135,7 @@ def record(only: list[str]) -> None:
         else:
             text = path.read_text(encoding="utf-8").strip()
             ce, ledger = crews.run_claim_crew(text)
-            fx |= {"claim_evidence": ce.model_dump(), "tool_urls": ledger.items}
+            fx |= {"claim_evidence": ce.model_dump(), "tool_urls": ledger.items, "tool_errors": ledger.errors}
         out = DEMO_DIR / f"{demo['id']}.crew.json"
         out.write_text(json.dumps(fx, indent=1, ensure_ascii=False), encoding="utf-8")
         print(f"recorded {out.name} in {time.time() - t0:.1f}s")

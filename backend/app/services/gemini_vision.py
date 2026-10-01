@@ -45,6 +45,7 @@ def extract(image_bytes: bytes, fmt: str) -> Extracted:
                     response_mime_type="application/json",
                     response_schema=Extracted,
                     temperature=0.2,
+                    thinking_config=types.ThinkingConfig(thinking_level="low"),
                 ),
             )
             if isinstance(resp.parsed, Extracted):

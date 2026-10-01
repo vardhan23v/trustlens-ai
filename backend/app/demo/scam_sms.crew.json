@@ -1,0 +1,59 @@
+{
+ "model": "gemini-3.6-flash",
+ "recorded_at": "2026-10-01 10:55",
+ "extracted": {
+  "classification": "message",
+  "extracted_text": "SBI Alert: Dear customer, your SBI YONO account KYC has expired today. Your account will be blocked within 24 hours. Update KYC immediately by clicking bit.ly/sbi-kyc-2026 and enter the OTP to verify. -SBI",
+  "sender": "SBI",
+  "sender_domain": "",
+  "company": "SBI",
+  "person": "",
+  "claim": "your SBI YONO account KYC has expired today. Your account will be blocked within 24 hours.",
+  "date": "",
+  "urls": [
+   "bit.ly/sbi-kyc-2026"
+  ],
+  "phone_numbers": [],
+  "email_addresses": [],
+  "money_amounts": [],
+  "requested_action": "Update KYC immediately by clicking bit.ly/sbi-kyc-2026 and enter the OTP to verify."
+ },
+ "signal_set": {
+  "signals": [
+   {
+    "key": "kyc_threat",
+    "title": "Immediate Account Blocking Threat",
+    "severity": "high",
+    "explanation": "The sender claims your KYC has expired and threatens to block your account within 24 hours if action is not taken. Legitimate banks rarely suspend services with such short notice via simple text messages.",
+    "evidence": "your SBI YONO account KYC has expired today. Your account will be blocked within 24 hours.",
+    "uncertainty": "The bank might send automated reminders if previous deadline notices were ignored, though demanding immediate credentials via a short link remains non-standard."
+   },
+   {
+    "key": "credential_request",
+    "title": "OTP Request Via Link",
+    "severity": "high",
+    "explanation": "The message asks you to enter an One-Time Password (OTP) on a third-party link. Banks continuously instruct customers never to share OTPs or input them on unverified web pages.",
+    "evidence": "enter the OTP to verify",
+    "uncertainty": "Certain official online portal flows require OTP verification, but banks do not direct users to enter OTPs via shortened external links."
+   },
+   {
+    "key": "action_pressure",
+    "title": "Coercive Urgency for Action",
+    "severity": "medium",
+    "explanation": "The message uses high-pressure language demanding immediate compliance to induce panic. This is a common tactic used to bypass critical thinking.",
+    "evidence": "Update KYC immediately",
+    "uncertainty": "Urgent wording can occasionally be used in genuine service alerts regarding critical security issues."
+   }
+  ],
+  "inconsistencies": [
+   "The message claims to be from official bank SBI, but uses a shortened link service (bit.ly) instead of an official sbi.co.in domain."
+  ],
+  "overall_assessment": "high_risk",
+  "recommendation": "Do not click on the link or share any OTP or personal details. Contact SBI directly using official channels to check your account status.",
+  "what_to_verify": [
+   "Check your official SBI YONO app or log into internet banking directly via sbi.co.in to see if there are any real KYC notifications.",
+   "Call the official SBI customer care helpline number listed on the back of your debit card or official website.",
+   "Verify the sender address or SMS header against known official SBI notification handles."
+  ]
+ }
+}

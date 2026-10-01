@@ -21,7 +21,7 @@ Built at **ACM × MLH Hack Days 2026 — "Build with Gemini"**, Track 2: *Trust 
 | **Claim Verifier** agent | Extracts the checkable claim and gathers evidence with tools | CrewAI agent on Gemini + `FactCheckSearchTool` + `GroundedSearchTool` |
 | Grounded search | Finds published fact-checks with cited sources | Gemini `google_search` grounding (separate call, no schema) |
 
-Model: `GEMINI_MODEL` (default `gemini-2.5-flash`). Orchestration: a CrewAI **Flow** (`TrustLensFlow`):
+Model: `GEMINI_MODEL` (default `gemini-3.6-flash`; `gemini-2.5-flash` is no longer offered to new API keys). Orchestration: a CrewAI **Flow** (`TrustLensFlow`):
 
 ```
 forensics (EXIF + ELA) → Gemini vision → deterministic rules → CrewAI crew (Gemini) → score + verdict in Python → Trust Report

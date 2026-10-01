@@ -221,6 +221,8 @@ def build(state) -> TrustReport:
         caveats = (["No fact-check source was found; absence of evidence is not evidence of falsehood"]
                    if not evidence else
                    ["The verdict reflects published fact-checks found at analysis time, not an independent investigation"])
+        if not evidence and state.tool_errors:
+            caveats[0] = "The fact-check search could not be completed, so this claim was not checked against any source"
         caveats.append("The trust score reflects message-level signals only, not whether the claim is true")
     else:
         recommendation = RECOMMENDATION[risk]
