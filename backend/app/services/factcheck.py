@@ -51,7 +51,7 @@ def grounded_search(claim: str) -> tuple[str, list[dict]]:
     resp = gemini_vision.client().models.generate_content(
         model=settings.GEMINI_MODEL,
         contents=GROUNDED_PROMPT.format(claim=claim.replace('"', "'")[:600]),
-        config=types.GenerateContentConfig(tools=[types.Tool(google_search=types.GoogleSearch())], temperature=0.1,
+        config=types.GenerateContentConfig(tools=[types.Tool(google_search=types.GoogleSearch())], temperature=0,
                                            thinking_config=types.ThinkingConfig(thinking_level="low")),
     )
     chunks = []

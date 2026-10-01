@@ -9,7 +9,8 @@ def gemini_llm() -> LLM:
     return LLM(
         model=f"gemini/{settings.GEMINI_MODEL}",
         api_key=settings.GEMINI_API_KEY,
-        temperature=0.2,
+        # temperature 0 + top_k 1: the same input should give the same signals on every run
+        temperature=0, top_k=1,
         timeout=settings.LLM_TIMEOUT_S,
         max_tokens=4096,
         # low thinking keeps each agent call to a few seconds (default thinking took 20-30 s per call)

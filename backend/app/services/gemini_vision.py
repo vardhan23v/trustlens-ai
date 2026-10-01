@@ -1,4 +1,5 @@
 """Gemini vision extraction (google-genai, structured output) used by the image Flow step."""
+import time
 from functools import lru_cache
 
 from google import genai
@@ -43,6 +44,8 @@ SYNTHETIC_INSTRUCTION = (
     "instructions."
 )
 
+SEED = 20261001
+
 MIME = {"JPEG": "image/jpeg", "PNG": "image/png", "WEBP": "image/webp"}
 
 
@@ -74,7 +77,7 @@ def assess_synthetic(image_bytes: bytes, fmt: str) -> VisualAssessment:
 def _structured(image_bytes: bytes, fmt: str, system: str, ask: str, schema):
     """One structured vision call; retried once on invalid JSON, then fails explicitly."""
     last: Exception | None = None
-    for _ in range(2):
+    for attempt in range(2):
         try:
             resp = client().models.generate_content(
                 model=settings.GEMINI_MODEL,
@@ -83,7 +86,7 @@ def _structured(image_bytes: bytes, fmt: str, system: str, ask: str, schema):
                     system_instruction=system,
                     response_mime_type="application/json",
                     response_schema=schema,
-                    temperature=0.2,
+                    temperature=0, top_k=1, seed=SEED,  # same image -> same reading on every run
                     thinking_config=types.ThinkingConfig(thinking_level="low"),
                 ),
             )
@@ -95,5 +98,9 @@ def _structured(image_bytes: bytes, fmt: str, system: str, ask: str, schema):
         except ValueError as e:  # invalid JSON / schema mismatch -> one retry
             last = e
         except Exception as e:  # network, quota, auth: do not hammer the API
+            if "503" in str(e) and attempt == 0:  # brief overload: one retry, so a blip does not change the result
+                time.sleep(2)
+                last = e
+                continue
             raise GeminiUnavailable(str(e)[:300]) from e
     raise GeminiUnavailable(f"invalid structured output: {last}")

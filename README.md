@@ -113,7 +113,8 @@ The same signal found by a rule *and* by Gemini counts once and shows both badge
 - **Known-organisation attenuation.** If every link is on the claimed organisation's own domain, urgency is capped at
   low, so a real bank SMS is not flagged HIGH for sounding urgent.
 - **Graceful degradation.** If Gemini is unavailable, the report still returns rule + forensics signals with a banner; nothing is fabricated.
-- **Privacy.** Nothing is stored; uploads are processed in memory and sent to Gemini for analysis only. The backend never fetches user-supplied URLs.
+- **Repeatable.** Gemini runs at temperature 0, and an identical input is answered from a short-lived in-memory cache (30 min, RAM only), so the same image gives the same report.
+- **Privacy.** Nothing is written to disk; uploads are processed in memory and sent to Gemini for analysis only. The backend never fetches user-supplied URLs.
 - Rules cover English + Hinglish patterns; other languages rely on Gemini.
 
 ## Track 2 mapping
