@@ -1,5 +1,6 @@
 import type { Severity, Signal } from '../types/report'
 import { SEVERITY_ICON, SEVERITY_LABEL, fmtNum, normSeverity } from '../utils/format'
+import { useTilt } from '../hooks/useTilt'
 import SourceBadge from './SourceBadge'
 
 interface Props {
@@ -22,11 +23,10 @@ const SEV_TEXT: Record<Severity, string> = {
 
 export default function SignalCard({ signal, index = 0 }: Props) {
   const sev = normSeverity(signal.severity)
+  const tilt = useTilt<HTMLElement>(4)
   return (
-    <article
-      className={`card animate-fade-up border-l-4 p-4 ${BAR[sev]}`}
-      style={{ animationDelay: `${index * 60}ms` }}
-    >
+    <div className="reveal reveal-flip" style={{ ['--reveal-delay' as string]: `${Math.min(index, 6) * 70}ms` }}>
+    <article ref={tilt} className={`card card-hover tilt h-full border-l-4 p-4 ${BAR[sev]}`}>
       <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
         <div className="min-w-0">
           <h3 className="text-[15px] font-semibold leading-snug text-text">{signal.title || signal.key}</h3>
@@ -53,5 +53,6 @@ export default function SignalCard({ signal, index = 0 }: Props) {
       )}
       {signal.uncertainty && <p className="mt-2 text-xs text-muted">Uncertainty: {signal.uncertainty}</p>}
     </article>
+    </div>
   )
 }

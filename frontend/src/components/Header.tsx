@@ -1,6 +1,19 @@
+import { useEffect, useState } from 'react'
+
 export default function Header() {
+  const [scrolled, setScrolled] = useState(false)
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 12)
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
   return (
-    <header className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 py-6">
+    <header
+      className={`sticky top-0 z-30 -mx-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b px-4 py-3 transition-[background-color,border-color] duration-300 ${
+        scrolled ? 'border-border bg-bg/85 backdrop-blur-md' : 'border-transparent'
+      }`}
+    >
       <div className="flex items-center gap-3">
         <span className="grid size-10 place-items-center rounded-xl border border-accent/30 bg-accent/10">
           <svg viewBox="0 0 32 32" fill="none" className="size-7 text-accent" aria-hidden="true">

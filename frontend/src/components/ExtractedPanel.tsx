@@ -30,7 +30,7 @@ export default function ExtractedPanel({ extracted: x }: Props) {
   if (rows.length === 0) return null
 
   return (
-    <details className="card group animate-fade-up">
+    <details className="card group reveal">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-xl p-4 sm:px-6 [&::-webkit-details-marker]:hidden">
         <span className="section-title">Extracted information</span>
         <span className="flex items-center gap-2 text-xs text-muted">

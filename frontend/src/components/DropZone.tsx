@@ -64,7 +64,7 @@ export default function DropZone({ file, previewUrl, onFile, disabled }: Props) 
         }}
         onDragLeave={() => setDragging(false)}
         onDrop={onDrop}
-        className={`flex min-h-44 cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border border-dashed p-5 text-center transition-colors ${
+        className={`scan-host ${dragging ? 'scan-loop' : ''} flex min-h-44 cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border border-dashed p-5 text-center transition-colors ${
           dragging ? 'border-accent bg-accent/10' : 'border-border bg-bg/60 hover:border-accent-soft'
         } ${disabled ? 'cursor-not-allowed opacity-60' : ''}`}
       >

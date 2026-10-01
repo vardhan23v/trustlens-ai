@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import Backdrop from '../components/Backdrop'
 import ErrorCard from '../components/ErrorCard'
 import Header from '../components/Header'
+import Hero from '../components/Hero'
 import InputPanel from '../components/InputPanel'
 import ReportView from '../components/ReportView'
 import StageProgress, { HOLD_STAGE, STAGES } from '../components/StageProgress'
 import { analyze, getDemos, getHealth, isMock } from '../services/api'
 import type { Demo, Health, InputType, Intent, TrustReport } from '../types/report'
+import { useRevealAll } from '../hooks/useReveal'
 import { prefersReducedMotion, sleep } from '../utils/format'
 
 type Phase = 'idle' | 'analyzing' | 'result' | 'error'
@@ -46,6 +49,8 @@ export default function Home() {
   const runId = useRef(0)
   const objectUrls = useRef<string[]>([])
   const resultRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLDivElement>(null)
+  useRevealAll()
 
   useEffect(() => {
     let alive = true
@@ -155,9 +160,16 @@ export default function Home() {
   }
 
   return (
-    <div className="mx-auto min-h-screen max-w-6xl px-4 pb-16">
+    <div className="mx-auto min-h-screen max-w-6xl overflow-x-clip px-4 pb-16">
+      <Backdrop />
       <Header />
+      <Hero
+        onStart={() =>
+          inputRef.current?.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' })
+        }
+      />
       <main className="space-y-6">
+        <div ref={inputRef} className="reveal reveal-zoom scroll-mt-20">
         <InputPanel
           mode={mode}
           onModeChange={setMode}
@@ -179,10 +191,11 @@ export default function Home() {
           onPickDemo={onPickDemo}
           health={health}
         />
+        </div>
 
         {phase === 'error' && error && <ErrorCard message={error} />}
 
-        <div ref={resultRef} className="scroll-mt-4 space-y-6">
+        <div ref={resultRef} className="scroll-mt-20 space-y-6">
           {busy && <StageProgress stage={stage} intent={runIntent} />}
           {phase === 'result' && report && <ReportView report={report} originalUrl={reportImageUrl} />}
         </div>

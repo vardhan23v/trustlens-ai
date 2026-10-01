@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { RiskLevel } from '../types/report'
+import { useTilt } from '../hooks/useTilt'
 import { prefersReducedMotion } from '../utils/format'
 
 interface Props {
@@ -41,15 +42,17 @@ export default function TrustGauge({ score, risk }: Props) {
   }, [target])
 
   const color = RISK_COLOR[risk] ?? 'var(--color-accent)'
+  const tilt = useTilt<HTMLDivElement>(10)
 
   return (
     <div
       role="img"
       aria-label={`Trust score ${target} out of 100`}
-      className="relative shrink-0"
-      style={{ width: SIZE, height: SIZE }}
+      ref={tilt}
+      className="tilt relative shrink-0 rounded-full"
+      style={{ width: SIZE, height: SIZE, ['--gauge-color' as string]: color }}
     >
-      <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`} className="-rotate-90" aria-hidden="true">
+      <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`} className="gauge-glow -rotate-90" aria-hidden="true">
         <circle cx={SIZE / 2} cy={SIZE / 2} r={R} fill="none" stroke="var(--color-surface-2)" strokeWidth={STROKE} />
         <circle
           cx={SIZE / 2}

@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react'
+import { useTilt } from '../hooks/useTilt'
 import type { Intent } from '../types/report'
 
 interface Props {
@@ -46,6 +48,15 @@ function Icon({ intent }: { intent: Intent }) {
   )
 }
 
+function Tilt({ children }: { children: ReactNode }) {
+  const ref = useTilt<HTMLDivElement>(5)
+  return (
+    <div ref={ref} className="tilt rounded-xl">
+      {children}
+    </div>
+  )
+}
+
 export default function IntentCards({ value, onChange, disabled }: Props) {
   return (
     <fieldset disabled={disabled} className="min-w-0">
@@ -55,15 +66,15 @@ export default function IntentCards({ value, onChange, disabled }: Props) {
           const c = INTENT_COPY[id]
           const selected = value === id
           return (
+            <Tilt key={id}>
             <button
-              key={id}
               type="button"
               role="radio"
               aria-checked={selected}
               onClick={() => onChange(id)}
-              className={`group relative rounded-xl border p-4 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+              className={`group relative h-full w-full rounded-xl border p-4 text-left transition-[border-color,background-color,box-shadow] duration-200 disabled:cursor-not-allowed disabled:opacity-60 ${
                 selected
-                  ? 'border-accent bg-accent/10 shadow-[inset_0_0_0_1px_var(--color-accent)]'
+                  ? 'border-accent bg-accent/10 shadow-[inset_0_0_0_1px_var(--color-accent),0_20px_44px_-24px_var(--color-accent)]'
                   : 'border-border bg-surface-2/60 hover:border-accent-soft'
               }`}
             >
@@ -97,6 +108,7 @@ export default function IntentCards({ value, onChange, disabled }: Props) {
                 ))}
               </ul>
             </button>
+            </Tilt>
           )
         })}
       </div>

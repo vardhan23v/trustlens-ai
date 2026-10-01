@@ -7,11 +7,11 @@ const TONE_TEXT: Record<Tone, string> = { low: 'text-risk-low', med: 'text-risk-
 const TONE_BORDER: Record<Tone, string> = { low: 'border-l-risk-low', med: 'border-l-risk-med', high: 'border-l-risk-high' }
 const TONE_MARK: Record<Tone, string> = { low: '✓', med: '⚠', high: '✗' }
 
-function Axis({ heading, a, primary }: { heading: string; a: Assessment; primary: boolean }) {
+function Axis({ heading, a, primary, from }: { heading: string; a: Assessment; primary: boolean; from: 'left' | 'right' }) {
   const tone = a.state === 'NOT_ASSESSED' && a.label !== 'No editing traces found' ? 'med' : (STATE_TONE[a.state] ?? 'med')
   const quiet = a.state === 'NOT_ASSESSED'
   return (
-    <div className={`rounded-xl border border-border border-l-4 bg-surface-2/60 p-4 ${quiet ? 'border-l-border' : TONE_BORDER[tone]}`}>
+    <div className={`reveal reveal-${from} rounded-xl border border-border border-l-4 bg-surface-2/60 p-4 ${quiet ? 'border-l-border' : TONE_BORDER[tone]}`}>
       <p className="section-title flex items-center gap-2">
         {heading}
         {primary && (
@@ -42,8 +42,9 @@ export default function AssessmentPanel({ report }: { report: TrustReport }) {
         </p>
       </div>
       <div className="mt-4 grid gap-3 md:grid-cols-2">
-        <Axis heading="Media authenticity" a={report.media_assessment} primary={intent === 'synthetic_detection'} />
+        <Axis from="left" heading="Media authenticity" a={report.media_assessment} primary={intent === 'synthetic_detection'} />
         <Axis
+          from="right"
           heading="Claim / artifact authenticity"
           a={report.artifact_assessment}
           primary={intent === 'artifact_authenticity'}

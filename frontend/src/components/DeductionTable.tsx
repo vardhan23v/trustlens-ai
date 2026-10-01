@@ -25,7 +25,7 @@ export default function DeductionTable({ signals, breakdown, score }: Props) {
   const terms = cats.filter((c) => c.applied > 0).map((c) => fmtNum(c.applied))
 
   return (
-    <section aria-label="Score calculation" className="card animate-fade-up p-4 sm:p-6">
+    <section aria-label="Score calculation" className="card reveal p-4 sm:p-6">
       <h2 className="section-title">How the score was calculated</h2>
       <p className="mt-1 mb-4 text-xs text-muted">
         The score is computed in code from the signals below — not chosen by the model.

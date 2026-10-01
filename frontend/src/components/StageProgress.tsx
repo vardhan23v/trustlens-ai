@@ -52,7 +52,7 @@ export default function StageProgress({ stage, intent }: Props) {
                   done
                     ? 'border-accent bg-accent text-bg'
                     : active
-                      ? 'animate-stage-pulse border-accent bg-surface text-accent'
+                      ? 'stage-active animate-stage-pulse border-accent bg-surface text-accent'
                       : 'border-border bg-surface text-muted/60'
                 }`}
               >

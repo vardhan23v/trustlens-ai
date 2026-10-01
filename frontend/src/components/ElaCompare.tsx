@@ -50,7 +50,7 @@ export default function ElaCompare({ originalUrl, heatmapB64, region, status, wi
   )
 
   return (
-    <section aria-label="Error level analysis" className="card animate-fade-up p-4 sm:p-6">
+    <section aria-label="Error level analysis" className="card reveal scan-host scan-once p-4 sm:p-6">
       <h2 className="section-title mb-4">Image forensics · Error Level Analysis</h2>
       {hasHeatmap ? (
         <>

@@ -41,7 +41,7 @@ function host(url: string): string {
 export default function EvidenceList({ evidence }: Props) {
   if (evidence.length === 0) return null
   return (
-    <section aria-label="Evidence" className="card animate-fade-up p-4 sm:p-6">
+    <section aria-label="Evidence" className="card reveal p-4 sm:p-6">
       <h2 className="section-title mb-4">Evidence from sources</h2>
       <ul className="space-y-3">
         {evidence.map((e, i) => {
