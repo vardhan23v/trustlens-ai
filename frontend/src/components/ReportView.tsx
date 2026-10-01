@@ -48,6 +48,9 @@ export default function ReportView({ report, originalUrl }: Props) {
   const ela = report.ela
   const changeFactors = (report.change_factors ?? []).length > 0 ? report.change_factors : (report.confidence_boosters ?? [])
   const news = report.mode === 'news_claim'
+  // A clean 100 would read as "trusted". With no findings and no positive assessment there is nothing to score.
+  const undecided = ['INCONCLUSIVE', 'NOT_ASSESSED', 'UNVERIFIED', 'EVIDENCE_UNAVAILABLE'].includes(report.overall_assessment?.state ?? '')
+  const unscored = !!report.mode && (report.signals ?? []).length === 0 && (!!report.gemini_error || undecided)
   const shownSignals = useCountUp(signals.length)
   const hasPipeline =
     (report.stages ?? []).length > 0 || (report.specialist_models ?? []).length > 0 || Object.keys(report.media_metadata ?? {}).length > 0
@@ -69,11 +72,13 @@ export default function ReportView({ report, originalUrl }: Props) {
       <div id="rep-summary" className="card card-glow animate-fade-up grid scroll-mt-32 gap-6 p-4 sm:p-6 md:grid-cols-[auto_1fr] md:gap-8">
         <div className="flex justify-center md:items-start">
           <div className="max-w-[15rem] text-center">
-            {report.mode && report.gemini_error && (report.signals ?? []).length === 0 ? (
+            {unscored ? (
               <div className="grid size-[180px] place-items-center rounded-full border-[12px] border-border text-center">
                 <p className="px-4 text-sm font-semibold text-muted">
                   Not scored
-                  <span className="mt-1 block text-[11px] font-normal">the examination did not complete</span>
+                  <span className="mt-1 block text-[11px] font-normal">
+                    {report.gemini_error ? 'the examination did not complete' : 'nothing decisive was found either way'}
+                  </span>
                 </p>
               </div>
             ) : (

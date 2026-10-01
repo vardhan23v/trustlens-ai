@@ -6,6 +6,7 @@ from crewai import Crew, Process
 from pydantic import BaseModel, ValidationError
 
 from app.config import settings
+from app.services import quota
 from app.models.llm_outputs import ClaimEvidence, Extracted, SignalSet
 from app.services.crew import agents, tasks
 from app.services.crew.tools import FactCheckSearchTool, GroundedSearchTool, NewsSearchTool, ToolLedger
@@ -39,6 +40,7 @@ def _require_key() -> None:
         raise CrewUnavailable("GEMINI_API_KEY is not configured")
 
 
+@quota.with_fallback
 def run_text_crew(text: str, rule_findings: str) -> tuple[Extracted, SignalSet]:
     """Text mode: Extractor → Trust Signal Analyst (analyst sees the extraction via task context)."""
     _require_key()
@@ -59,6 +61,7 @@ def run_text_crew(text: str, rule_findings: str) -> tuple[Extracted, SignalSet]:
     raise CrewUnavailable(f"invalid structured output: {str(last)[:200]}")
 
 
+@quota.with_fallback
 def run_image_crew(extracted: Extracted, rule_findings: str) -> SignalSet:
     """Image mode: extraction was done by the vision step, so the Analyst runs alone."""
     _require_key()
@@ -77,6 +80,7 @@ def run_image_crew(extracted: Extracted, rule_findings: str) -> SignalSet:
     raise CrewUnavailable(f"invalid structured output: {str(last)[:200]}")
 
 
+@quota.with_fallback
 def run_claim_crew(text: str) -> tuple[ClaimEvidence, ToolLedger]:
     """Claim mode: Claim Verifier with FactCheck + Grounded tools. Returns evidence and the tool ledger."""
     _require_key()

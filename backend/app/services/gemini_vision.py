@@ -6,6 +6,7 @@ from google import genai
 from google.genai import types
 
 from app.config import settings
+from app.services import quota
 from app.models.llm_outputs import Extracted, NewsImageExtract, VisualAssessment
 
 SYSTEM_INSTRUCTION = (
@@ -103,6 +104,7 @@ def assess_synthetic(image_bytes: bytes, fmt: str) -> VisualAssessment:
     return _structured(image_bytes, fmt, SYNTHETIC_INSTRUCTION, "Examine this image.", VisualAssessment)
 
 
+@quota.with_fallback
 def _structured(image_bytes: bytes, fmt: str, system: str, ask: str, schema):
     """One structured vision call; retried once on invalid JSON, then fails explicitly."""
     last: Exception | None = None

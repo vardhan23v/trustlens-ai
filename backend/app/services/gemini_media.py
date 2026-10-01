@@ -8,6 +8,7 @@ import time
 from google.genai import types
 
 from app.config import settings
+from app.services import quota
 from app.models.llm_outputs import MediaAssessment
 from app.services.gemini_vision import SEED, GeminiUnavailable, client
 
@@ -65,6 +66,7 @@ def _contents(data: bytes, mime: str, prepared) -> tuple[list, str]:
     return [types.Part.from_bytes(data=data, mime_type=mime), "Examine this file."], ""
 
 
+@quota.with_fallback
 def assess(data: bytes, mime: str, prepared=None) -> MediaAssessment:
     """One structured call; one retry on invalid JSON or a brief overload, then fails explicitly."""
     contents, extra = _contents(data, mime, prepared)

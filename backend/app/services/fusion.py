@@ -154,7 +154,7 @@ def _change_factors(report: TrustReport, state, claim_axis: AxisAssessment | Non
             out.insert(1, "Coverage of the claim by two independent established news organisations")
         elif _independent(listed) < 2:
             out.insert(0, "A second independent listed source: one site alone does not settle the claim")
-        if claim_axis.state == "INCONCLUSIVE":
+        if claim_axis.label == "Sources conflict":
             out.insert(0, "A primary source (official record or statement) to resolve the conflict between sources")
         if listed and any(not e.published for e in listed):
             out.append("Publication dates for the sources that have none, to place them on the timeline")

@@ -18,6 +18,8 @@ class Settings(BaseSettings):
 
     GEMINI_API_KEY: str = ""
     GEMINI_MODEL: str = "gemini-3.6-flash"
+    # Tried in order when the current model's quota is exhausted (services/quota.py). Empty = no fallback.
+    GEMINI_FALLBACK_MODELS: str = "gemini-3.5-flash,gemini-3.5-flash-lite,gemini-3.1-flash-lite"
     FACTCHECK_API_KEY: str = ""
     MAX_UPLOAD_MB: int = 10
     DEBUG: bool = False

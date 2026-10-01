@@ -8,6 +8,7 @@ import time
 from google.genai import types
 
 from app.config import settings
+from app.services import quota
 from app.models.llm_outputs import VisualAssessment
 from app.services.gemini_vision import SEED, GeminiUnavailable, client
 
@@ -28,6 +29,7 @@ TEXT_INSTRUCTION = (
 )
 
 
+@quota.with_fallback
 def assess(text: str) -> VisualAssessment:
     """One structured call; one retry on invalid JSON or a brief overload, then fails explicitly."""
     body = text.replace("</content>", "< /content>")
