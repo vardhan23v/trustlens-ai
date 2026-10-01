@@ -44,7 +44,7 @@ export default function ReportView({ report, originalUrl }: Props) {
 
   return (
     <section aria-label="Trust Report" className="space-y-6">
-      {report.analysis_intent && <AssessmentPanel report={report} />}
+      {(report.analysis_intent || (report.assessment_axes ?? []).length > 0) && <AssessmentPanel report={report} />}
       <div className="card animate-fade-up grid gap-6 p-4 sm:p-6 md:grid-cols-[auto_1fr] md:gap-8">
         <div className="flex justify-center md:items-start">
           <TrustGauge score={report.trust_score} risk={report.risk_level} />

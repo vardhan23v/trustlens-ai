@@ -7,7 +7,7 @@ import re
 from urllib.parse import urlparse
 
 from app.models.llm_outputs import SIGNAL_KEYS, Extracted, LLMSignal
-from app.models.report import Assessment, CategoryBreakdown, Evidence, Signal, TrustReport
+from app.models.report import Assessment, AxisAssessment, CategoryBreakdown, Evidence, Signal, TrustReport
 from app.rules.scoring import CATEGORY_CAPS, SEVERITY_RANK, band, category_of, penalty_for
 
 FORENSIC_KEYS = {"editing_software_exif", "exif_time_mismatch", "ela_anomaly"}  # only Python can measure these
@@ -232,6 +232,74 @@ def _assess_image(state, signals: list[Signal], risk: str) -> tuple[Assessment, 
     return media, artifact
 
 
+MEDIA_KIND_KEY = {"visual_manipulation": "manipulation_indicator", "ai_generation": "ai_generation_indicator",
+                  "audio": "audio_anomaly", "av_sync": "av_inconsistency", "context": "inconsistency"}
+SPECIALIST_NOTE = ("Specialist models: video deepfake detector - MODEL_UNAVAILABLE; audio spoof detector - "
+                   "MODEL_UNAVAILABLE; container metadata (ffmpeg) - UNAVAILABLE. Gemini alone examined this file.")
+MEDIA_RECOMMENDATION = {
+    "MANIPULATED": "Treat this recording with caution: signs of editing or mismatch were observed. Look for the "
+                   "original upload and compare before relying on or sharing it.",
+    "LIKELY_SYNTHETIC": "Treat this recording as possibly AI-generated. Do not rely on it as a record of a real "
+                        "event; look for the original source.",
+    "LIKELY_AUTHENTIC": "No signs of editing or synthesis were observed. That does not prove the recording is "
+                        "authentic, and it says nothing about whether what is said in it is true.",
+    "INCONCLUSIVE": "The evidence is not strong enough either way. Treat the recording as unverified and check "
+                    "its original source.",
+}
+
+
+def _media_axis(heading: str, claimed: str, obs: list, gemini_ok: bool, what: str) -> AxisAssessment:
+    """One media question, decided here from Gemini's observations (its own label is only one input)."""
+    claimed = (claimed or "").strip().lower()
+    strong = [o for o in obs if o.severity.lower() != "low" and o.evidence.strip()]
+    high = [o for o in strong if o.severity.lower() == "high"]
+    where = ", ".join(sorted({o.timestamp for o in strong if o.timestamp})[:4])
+    at = f" (at {where})" if where else ""
+    if not gemini_ok:
+        return AxisAssessment(heading=heading, state="INCONCLUSIVE", label="Inconclusive",
+                              summary="Gemini could not examine the file, so nothing was assessed.")
+    if claimed == "not_applicable":
+        return AxisAssessment(heading=heading, state="NOT_ASSESSED", label="Not applicable",
+                              summary=f"The file has no {what} to assess.")
+    if claimed in ("manipulated", "inconsistent") and strong:
+        label = "Inconsistent" if claimed == "inconsistent" else "Manipulation indicators"
+        return AxisAssessment(heading=heading, state="MANIPULATED", label=label,
+                              summary=f"{len(strong)} observation(s){at} point to editing or mismatch. This is evidence, not proof.")
+    if claimed == "likely_synthetic" and (high or len(strong) >= 2):
+        return AxisAssessment(heading=heading, state="LIKELY_SYNTHETIC", label="Possibly synthetic",
+                              summary=f"Several indicators of synthesis were observed{at}. No specialist detector confirmed this.")
+    if claimed in ("likely_authentic", "consistent") and not strong:
+        label = "Consistent" if claimed == "consistent" else "No indicators found"
+        return AxisAssessment(heading=heading, state="LIKELY_AUTHENTIC", label=label,
+                              summary="Nothing suspicious was observed. A well-made fake can still pass, and no specialist detector was run.")
+    return AxisAssessment(heading=heading, state="INCONCLUSIVE", label="Inconclusive",
+                          summary="The observations are weak or mixed." + at)
+
+
+def _assess_media(state) -> list[AxisAssessment]:
+    m, ok = state.media, not state.crew_error
+    obs = m.observations if m else []
+    kinds = lambda *k: [o for o in obs if o.kind.strip().lower() in k]  # noqa: E731
+    # decided from the file's own type, not from the model's description of it
+    is_audio_only = (getattr(state, "media_mime", "") or "").startswith("audio/")
+    axes = [
+        _media_axis("Visual authenticity", "not_applicable" if is_audio_only else (m.visual_assessment if m else ""),
+                    kinds("visual_manipulation", "ai_generation"), ok, "picture"),
+        _media_axis("Audio authenticity", m.audio_assessment if m else "", kinds("audio"), ok, "audio"),
+        _media_axis("Audio-visual consistency", "not_applicable" if is_audio_only else (m.av_consistency if m else ""),
+                    kinds("av_sync"), ok, "combined picture and sound"),
+    ]
+    if m and m.spoken_claims:
+        axes.append(AxisAssessment(
+            heading="Spoken claims", state="UNVERIFIED", label="Not verified",
+            summary=f"{len(m.spoken_claims)} factual claim(s) were heard but not checked against any source. An "
+                    "authentic recording can still contain a false claim: paste the claim into Fake News / Claim."))
+    else:
+        axes.append(AxisAssessment(heading="Spoken claims", state="NOT_ASSESSED", label="None identified",
+                                   summary="No checkable factual claim was identified in the speech."))
+    return axes
+
+
 def _error_note(err: str) -> str:
     e = err.lower()
     if "not configured" in e:
@@ -260,6 +328,14 @@ def build(state) -> TrustReport:
         llm_signals += [LLMSignal(key=KIND_KEY.get(i.kind.strip().lower(), "visual_inconsistency"), title=i.title,
                                   severity=i.severity, explanation=i.explanation, evidence=i.evidence,
                                   uncertainty=i.uncertainty) for i in visual.indicators]
+    media = getattr(state, "media", None)
+    if media:  # video/audio: Gemini's timestamped observations become GEMINI signals
+        for o in media.observations:
+            when = f"At {o.timestamp}: " if o.timestamp.strip() else ""
+            llm_signals.append(LLMSignal(
+                key=MEDIA_KIND_KEY.get(o.kind.strip().lower(), "visual_inconsistency"), title=o.title,
+                severity=o.severity, explanation=o.explanation, evidence=(when + o.evidence).strip() if o.evidence.strip() else "",
+                uncertainty=o.uncertainty))
     signals = merge(rule_signals, llm_signals)
 
     if state.all_urls_match_claimed:  # known-org attenuation: a real bank SMS is not a scam for sounding urgent
@@ -341,8 +417,32 @@ def build(state) -> TrustReport:
     if state.crew_error:
         notes.append(_error_note(state.crew_error))
 
-    intent = overall = media = artifact = None
+    intent = overall = artifact = None
+    axes: list[AxisAssessment] = []
     boosters: list[str] = []
+    if state.input_type == "media":
+        axes = _assess_media(state)
+        order = {"MANIPULATED": 0, "LIKELY_SYNTHETIC": 1, "INCONCLUSIVE": 2, "LIKELY_AUTHENTIC": 3}
+        ranked = sorted((a for a in axes[:3] if a.state in order), key=lambda a: order[a.state])
+        worst = ranked[0] if ranked else axes[0]
+        overall = Assessment(state=worst.state, label=worst.label, summary=f"{worst.heading}: {worst.summary}")
+        recommendation = MEDIA_RECOMMENDATION.get(worst.state, MEDIA_RECOMMENDATION["INCONCLUSIVE"])
+        caveats = ["Only Gemini examined this file; no pretrained deepfake or voice-spoof detector was run",
+                   "Detecting synthetic video or cloned voices by inspection is unreliable; a clean result is not proof",
+                   NOT_TRUE_NOTE.replace("image", "recording"),
+                   "Speakers are not identified: who is speaking was not verified"]
+        if media:
+            caveats += [l for l in media.limitations[:2] if l.strip()]
+            if media.description:
+                notes.append("What Gemini observed: " + media.description.strip()[:300])
+            if media.language:
+                notes.append(f"Speech language: {media.language}.")
+        notes.append(SPECIALIST_NOTE)
+        boosters = ["The original file from the person or channel that first published it",
+                    "The upload date and source page of the earliest copy",
+                    "An independent recording or report of the same event",
+                    "A specialist deepfake / voice-spoof detector run on the original file"]
+    media = None
     if state.input_type == "image":
         intent = state.intent
         media, artifact = _assess_image(state, signals, risk)
@@ -367,6 +467,7 @@ def build(state) -> TrustReport:
 
     return TrustReport(
         analysis_mode=state.analysis_mode, input_type=state.input_type, analysis_intent=intent,
+        assessment_axes=axes,
         overall_assessment=overall, media_assessment=media, artifact_assessment=artifact,
         confidence_boosters=boosters,
         classification=extracted.classification or "other", trust_score=trust_score, risk_level=risk,

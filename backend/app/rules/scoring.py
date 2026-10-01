@@ -9,6 +9,7 @@ PENALTIES = {
     "url_shortener": 8, "http_not_https": 5, "unusual_language": 5,
     "exif_time_mismatch": 5, "debunked_by_source": 40,
     "ai_generation_indicator": 20, "manipulation_indicator": 20, "visual_inconsistency": 10,
+    "av_inconsistency": 20, "audio_anomaly": 15,
 }
 SEVERITY_MULT = {"high": 1.0, "medium": 0.6, "low": 0.3}
 CATEGORY_OF = {
@@ -16,7 +17,7 @@ CATEGORY_OF = {
     "domain_mismatch": "url_domain", "suspicious_url": "url_domain", "url_shortener": "url_domain",
     "ip_url": "url_domain", "http_not_https": "url_domain", "debunked_by_source": "claim_evidence",
     "ai_generation_indicator": "visual_analysis", "manipulation_indicator": "visual_analysis",
-    "visual_inconsistency": "visual_analysis",
+    "visual_inconsistency": "visual_analysis", "av_inconsistency": "visual_analysis", "audio_anomaly": "visual_analysis",
 }  # everything else -> "message_content"
 CATEGORY_CAPS = {"image_forensics": 25, "visual_analysis": 45, "url_domain": 30, "message_content": 60, "claim_evidence": 40}
 BANDS = [(75, "LOW"), (45, "MEDIUM"), (0, "HIGH")]

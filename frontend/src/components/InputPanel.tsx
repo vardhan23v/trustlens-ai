@@ -3,6 +3,7 @@ import IntentCards, { INTENT_COPY } from './IntentCards'
 import AnalyzeButton from './AnalyzeButton'
 import DemoChips from './DemoChips'
 import DropZone from './DropZone'
+import MediaDrop from './MediaDrop'
 import TextArea from './TextArea'
 
 interface Props {
@@ -16,6 +17,9 @@ interface Props {
   file: File | null
   previewUrl: string | null
   onFile: (file: File | null) => void
+  mediaFile: File | null
+  mediaUrl: string | null
+  onMediaFile: (file: File | null) => void
   intent: Intent | null
   onIntentChange: (intent: Intent) => void
   demos: Demo[]
@@ -27,7 +31,8 @@ interface Props {
 const TABS: { id: InputType; label: string }[] = [
   { id: 'image', label: 'Screenshot / Image' },
   { id: 'text', label: 'Message / Text' },
-  { id: 'claim', label: 'News Claim' },
+  { id: 'claim', label: 'Fake News / Claim' },
+  { id: 'media', label: 'Video / Audio' },
 ]
 
 const PLACEHOLDER: Record<'text' | 'claim', string> = {
@@ -43,7 +48,7 @@ export default function InputPanel(props: Props) {
       <div
         role="tablist"
         aria-label="Input type"
-        className="grid grid-cols-3 gap-1 rounded-xl border border-border bg-bg/60 p-1 sm:inline-grid"
+        className="grid grid-cols-2 gap-1 rounded-xl sm:grid-cols-4 border border-border bg-bg/60 p-1 sm:inline-grid"
       >
         {TABS.map((t) => {
           const selected = t.id === mode
@@ -86,6 +91,8 @@ export default function InputPanel(props: Props) {
               </p>
             )}
           </div>
+        ) : mode === 'media' ? (
+          <MediaDrop file={props.mediaFile} previewUrl={props.mediaUrl} onFile={props.onMediaFile} disabled={busy} />
         ) : (
           <TextArea
             value={props.text}

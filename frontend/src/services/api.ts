@@ -80,6 +80,12 @@ export function analyzeImage(file: File, intent: Intent): Promise<TrustReport> {
   return request<TrustReport>('/analyze/image', { method: 'POST', body: form })
 }
 
+export function analyzeMedia(file: File): Promise<TrustReport> {
+  const form = new FormData()
+  form.append('file', file)
+  return request<TrustReport>('/analyze/media', { method: 'POST', body: form })
+}
+
 export function analyzeText(text: string): Promise<TrustReport> {
   return postJson<TrustReport>('/analyze/text', { text })
 }
@@ -126,6 +132,10 @@ export async function analyze(req: AnalyzeRequest): Promise<TrustReport> {
   if (req.mode === 'image') {
     if (!req.file) throw new ApiError('Choose an image to analyze.')
     return analyzeImage(req.file, req.intent ?? 'artifact_authenticity')
+  }
+  if (req.mode === 'media') {
+    if (!req.file) throw new ApiError('Choose a video or audio file to analyze.')
+    return analyzeMedia(req.file)
   }
   const text = (req.text ?? '').trim()
   if (!text) throw new ApiError('Enter some text to analyze.')

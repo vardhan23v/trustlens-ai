@@ -31,6 +31,26 @@ function Axis({ heading, a, primary, from }: { heading: string; a: Assessment; p
 
 /** Image reports: the selected intent, and media authenticity vs artifact authenticity as separate answers. */
 export default function AssessmentPanel({ report }: { report: TrustReport }) {
+  const axes = report.assessment_axes ?? []
+  if (axes.length > 0) {
+    return (
+      <div className="card animate-fade-up p-4 sm:p-6">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+          <h2 className="text-lg font-semibold text-text">Video / Audio Trust Report</h2>
+          <p className="text-xs text-muted">Each question is answered separately</p>
+        </div>
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          {axes.map((a, i) => (
+            <Axis key={a.heading} heading={a.heading} a={a} primary={false} from={i % 2 === 0 ? 'left' : 'right'} />
+          ))}
+        </div>
+        <p className="mt-3 text-xs text-muted">
+          An authentic recording can still contain a false claim, and a synthetic voice can say something true.
+          TrustLens does not prove truth; it shows what supports, contradicts or remains unknown.
+        </p>
+      </div>
+    )
+  }
   const intent = report.analysis_intent
   if (!intent || !report.media_assessment || !report.artifact_assessment) return null
   return (

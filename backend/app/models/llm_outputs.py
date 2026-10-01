@@ -11,6 +11,8 @@ SIGNAL_KEYS: list[str] = [
     "action_pressure",
     # image media analysis (synthetic_detection intent)
     "ai_generation_indicator", "manipulation_indicator", "visual_inconsistency",
+    # video / audio analysis
+    "av_inconsistency", "audio_anomaly",
 ]
 
 
@@ -81,6 +83,31 @@ class VisualAssessment(BaseModel):
     indicators: list[VisualIndicator] = Field(default_factory=list)
     authentic_cues: list[str] = Field(default_factory=list)
     assessment: str = "inconclusive"  # likely_synthetic|likely_authentic|manipulated|inconclusive
+    limitations: list[str] = Field(default_factory=list)
+
+
+class MediaObservation(BaseModel):
+    timestamp: str = ""  # "MM:SS" where it occurs; empty only if it applies to the whole file
+    kind: str = "visual"  # visual_manipulation | ai_generation | audio | av_sync | context
+    title: str = ""
+    severity: str = "medium"
+    explanation: str = ""
+    evidence: str = ""  # what is seen or heard at that moment
+    uncertainty: str = ""
+
+
+class MediaAssessment(BaseModel):
+    """Gemini's examination of an uploaded video or audio file."""
+    media_kind: str = "video"  # video | audio
+    has_speech: bool = False
+    transcript: str = ""
+    language: str = ""
+    spoken_claims: list[str] = Field(default_factory=list)
+    description: str = ""
+    observations: list[MediaObservation] = Field(default_factory=list)
+    visual_assessment: str = "inconclusive"  # likely_authentic|manipulated|likely_synthetic|inconclusive|not_applicable
+    audio_assessment: str = "inconclusive"  # likely_authentic|likely_synthetic|manipulated|inconclusive|not_applicable
+    av_consistency: str = "inconclusive"  # consistent|inconsistent|inconclusive|not_applicable
     limitations: list[str] = Field(default_factory=list)
 
 

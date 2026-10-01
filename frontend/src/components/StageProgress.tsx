@@ -19,6 +19,8 @@ interface Props {
   stage: number
   /** Image runs: what is being verified, shown above the stages. */
   intent?: Intent | null
+  /** Video / audio run. */
+  media?: boolean
 }
 
 const HEADLINE: Record<Intent, string> = {
@@ -26,14 +28,18 @@ const HEADLINE: Record<Intent, string> = {
   artifact_authenticity: 'Analyzing artifact authenticity…',
 }
 
-export default function StageProgress({ stage, intent }: Props) {
+export default function StageProgress({ stage, intent, media }: Props) {
   const current = STAGES[Math.min(stage, STAGES.length - 1)]
   return (
     <section aria-label="Analysis progress" className="card animate-fade-up p-4 sm:p-6">
       <p className="sr-only" role="status">
         {stage >= STAGES.length ? 'Finishing' : `Step ${stage + 1} of ${STAGES.length}: ${current}`}
       </p>
-      {intent && <p className="mb-4 text-sm font-medium text-accent">{HEADLINE[intent]}</p>}
+      {(intent || media) && (
+        <p className="mb-4 text-sm font-medium text-accent">
+          {media ? 'Examining video and audio: picture, sound and what is said…' : intent ? HEADLINE[intent] : ''}
+        </p>
+      )}
       <ol className="grid gap-3 md:grid-cols-8 md:gap-2" aria-hidden="true">
         {STAGES.map((label, i) => {
           const done = i < stage

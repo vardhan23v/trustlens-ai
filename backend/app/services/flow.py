@@ -12,17 +12,19 @@ from app.config import settings  # noqa: F401  (first: disables CrewAI telemetry
 from crewai.flow.flow import Flow, listen, start
 from pydantic import BaseModel, Field
 
-from app.models.llm_outputs import ClaimEvidence, Extracted, SignalSet, VisualAssessment
+from app.models.llm_outputs import ClaimEvidence, Extracted, MediaAssessment, SignalSet, VisualAssessment
 from app.models.report import Ela, Signal
 from app.rules import text_rules
-from app.services import gemini_vision, image_forensics
+from app.services import gemini_media, gemini_vision, image_forensics
 from app.services.crew import crews
 
 log = logging.getLogger("trustlens.flow")
 
 
 class FlowState(BaseModel):
-    input_type: str = "text"  # image | text | claim
+    input_type: str = "text"  # image | text | claim | media
+    media: Optional[MediaAssessment] = None  # media: Gemini's examination of the video/audio file
+    media_mime: str = ""
     intent: str = "artifact_authenticity"  # image only: synthetic_detection | artifact_authenticity
     visual: Optional[VisualAssessment] = None  # synthetic_detection: Gemini's visual examination
     text: str = ""
@@ -62,6 +64,16 @@ class TrustLensFlow(Flow[FlowState]):
     @listen(forensics)
     def vision_extract(self):
         s = self.state
+        if s.input_type == "media":
+            try:
+                s.media = gemini_media.assess(self.image_bytes, s.media_mime)
+                s.extracted = Extracted(classification=s.media.media_kind or "video",
+                                        extracted_text=s.media.transcript, claim="; ".join(s.media.spoken_claims[:5]))
+                s.agents_used.append("media")
+            except Exception as e:  # never fabricate: the report will say Gemini could not examine the file
+                log.warning("media step failed: %s", e)
+                s.crew_error = f"media: {e}"
+            return
         if s.input_type != "image":
             return
         if s.fixture is not None:
@@ -85,7 +97,8 @@ class TrustLensFlow(Flow[FlowState]):
         s = self.state
         if s.input_type == "image" and s.intent == "synthetic_detection":
             return  # the question is about the media itself: message/URL rules do not apply
-        text = content_text(s.extracted.extracted_text) if s.input_type == "image" else s.text
+        text = (content_text(s.extracted.extracted_text) if s.input_type == "image"
+                else s.extracted.extracted_text if s.input_type == "media" else s.text)
         result = text_rules.run(text)
         s.rule_signals = text_rules.soften_for_document(result.signals) if s.input_type == "image" else result.signals
         s.all_urls_match_claimed = result.domain.all_urls_match_claimed
@@ -99,8 +112,8 @@ class TrustLensFlow(Flow[FlowState]):
             return
         if s.crew_error:  # vision already failed: nothing to analyse
             return
-        if s.input_type == "image" and s.intent == "synthetic_detection":
-            return  # judged by the multimodal vision step; a text-only agent cannot see the image
+        if s.input_type == "media" or (s.input_type == "image" and s.intent == "synthetic_detection"):
+            return  # judged by the multimodal Gemini step; a text-only agent cannot see or hear the file
         try:
             if s.input_type == "image":
                 s.llm_signals = crews.run_image_crew(s.extracted, findings)
@@ -132,10 +145,11 @@ class TrustLensFlow(Flow[FlowState]):
 
 
 def run_sync(input_type: str, text: str = "", image_bytes: bytes = b"", image_format: str = "",
-             fixture: dict | None = None, intent: str = "artifact_authenticity") -> FlowState:
+             fixture: dict | None = None, intent: str = "artifact_authenticity", media_mime: str = "") -> FlowState:
     flow = TrustLensFlow()
     flow.image_bytes = image_bytes
-    inputs = {"input_type": input_type, "text": text, "image_format": image_format, "intent": intent}
+    inputs = {"input_type": input_type, "text": text, "image_format": image_format, "intent": intent,
+              "media_mime": media_mime}
     if fixture is not None:
         inputs |= {"fixture": fixture, "analysis_mode": "demo_cached"}
     flow.kickoff(inputs=inputs)
@@ -143,13 +157,14 @@ def run_sync(input_type: str, text: str = "", image_bytes: bytes = b"", image_fo
 
 
 async def run(input_type: str, text: str = "", image_bytes: bytes = b"", image_format: str = "",
-              fixture: dict | None = None, intent: str = "artifact_authenticity") -> FlowState:
+              fixture: dict | None = None, intent: str = "artifact_authenticity", media_mime: str = "") -> FlowState:
     """Run the Flow in a worker thread under the global timeout. On timeout the deterministic
     steps are re-run alone so a rule + forensics report is still returned."""
     loop = asyncio.get_running_loop()
     try:
         return await asyncio.wait_for(
-            loop.run_in_executor(None, run_sync, input_type, text, image_bytes, image_format, fixture, intent),
+            loop.run_in_executor(None, run_sync, input_type, text, image_bytes, image_format, fixture, intent,
+                                 media_mime),
             settings.FLOW_TIMEOUT_S,
         )
     except asyncio.TimeoutError:
@@ -160,6 +175,8 @@ async def run(input_type: str, text: str = "", image_bytes: bytes = b"", image_f
 def deterministic_only(input_type: str, text: str, image_bytes: bytes, image_format: str, reason: str,
                        intent: str = "artifact_authenticity") -> FlowState:
     s = FlowState(input_type=input_type, text=text, image_format=image_format, crew_error=reason, intent=intent)
+    if input_type == "media":
+        return s
     if input_type == "image":
         s.exif_signals = image_forensics.exif(image_bytes)
         s.ela, s.ela_signal = image_forensics.ela(image_bytes, image_format)

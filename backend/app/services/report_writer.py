@@ -76,7 +76,7 @@ class ReportDoc(BaseModel):
     disclaimer: str = PDF_DISCLAIMER
 
 
-INPUT_LABEL = {"image": "Image / screenshot", "text": "Message", "claim": "News claim"}
+INPUT_LABEL = {"image": "Image / screenshot", "text": "Message", "claim": "News claim", "media": "Video / audio"}
 VERDICT_LABEL = {"VERIFIED_BY_SOURCE": "VERIFIED BY SOURCE", "DEBUNKED_BY_SOURCE": "DEBUNKED BY SOURCE",
                  "UNVERIFIED": "UNVERIFIED"}
 

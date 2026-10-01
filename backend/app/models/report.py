@@ -57,9 +57,15 @@ class Assessment(BaseModel):
     summary: str
 
 
+class AxisAssessment(Assessment):
+    heading: str  # e.g. "Visual authenticity"
+
+
 class TrustReport(BaseModel):
     analysis_mode: Literal["live", "demo_cached"] = "live"
-    input_type: Literal["image", "text", "claim"]
+    input_type: Literal["image", "text", "claim", "media"]
+    # Video / audio: each question answered separately (visual, audio, A/V consistency, spoken claim).
+    assessment_axes: list[AxisAssessment] = Field(default_factory=list)
     # Image input only: what the user asked TrustLens to verify, and the two separate answers.
     # "Not AI-generated" does not mean "true", so media and artifact are assessed independently.
     analysis_intent: Optional[Intent] = None

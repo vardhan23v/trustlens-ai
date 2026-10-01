@@ -3,7 +3,7 @@
 export type Severity = 'high' | 'medium' | 'low'
 export type Category = 'image_forensics' | 'visual_analysis' | 'url_domain' | 'message_content' | 'claim_evidence'
 export type Source = 'RULE' | 'GEMINI'
-export type InputType = 'image' | 'text' | 'claim'
+export type InputType = 'image' | 'text' | 'claim' | 'media'
 export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH'
 export type Verdict = 'VERIFIED_BY_SOURCE' | 'DEBUNKED_BY_SOURCE' | 'UNVERIFIED'
 export type AnalysisMode = 'live' | 'demo_cached'
@@ -22,6 +22,10 @@ export interface Assessment {
   state: AssessmentState
   label: string
   summary: string
+}
+
+export interface AxisAssessment extends Assessment {
+  heading: string
 }
 
 export type ElaStatus = 'ok' | 'not_applicable_lossless' | 'not_applicable' | 'error'
@@ -80,6 +84,7 @@ export interface CategoryBreakdown {
 export interface TrustReport {
   analysis_mode: AnalysisMode
   input_type: InputType
+  assessment_axes: AxisAssessment[]
   analysis_intent: Intent | null
   overall_assessment: Assessment | null
   media_assessment: Assessment | null

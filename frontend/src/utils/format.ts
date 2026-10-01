@@ -17,6 +17,7 @@ const AGENT_LABEL: Record<string, string> = {
   analyst: 'Trust Signal Analyst',
   claim_verifier: 'Claim Verifier',
   vision: 'Gemini Vision',
+  media: 'Gemini Media Examination',
 }
 
 export function normSeverity(s: string): Severity {

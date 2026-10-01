@@ -33,6 +33,8 @@ export default function Home() {
   const [runIntent, setRunIntent] = useState<Intent | null>(null)
   const [file, setFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [mediaFile, setMediaFile] = useState<File | null>(null)
+  const [mediaUrl, setMediaUrl] = useState<string | null>(null)
   // The demo currently loaded into an input; cleared as soon as the user edits that input.
   const [demo, setDemo] = useState<{ id: string; mode: InputType } | null>(null)
 
@@ -107,7 +109,7 @@ export default function Home() {
   const busy = phase === 'analyzing'
 
   const onTextChange = (value: string) => {
-    if (mode === 'image') return
+    if (mode === 'image' || mode === 'media') return
     setTexts((t) => ({ ...t, [mode]: value }))
     if (demo?.mode === mode) setDemo(null)
   }
@@ -124,6 +126,17 @@ export default function Home() {
     if (demo?.mode === 'image') setDemo(null)
   }
 
+  const onMediaFile = (f: File | null) => {
+    setMediaFile(f)
+    if (f) {
+      const url = URL.createObjectURL(f)
+      objectUrls.current.push(url)
+      setMediaUrl(url)
+    } else {
+      setMediaUrl(null)
+    }
+  }
+
   const onPickDemo = (d: Demo) => {
     if (busy) return
     setMode(d.input_type)
@@ -132,7 +145,7 @@ export default function Home() {
       setIntent('artifact_authenticity') // the demo notices are artifact checks
       setFile(null)
       setPreviewUrl(d.image_url)
-    } else {
+    } else if (d.input_type !== 'media') {
       const key = d.input_type
       setTexts((t) => ({ ...t, [key]: d.text ?? '' }))
     }
@@ -147,13 +160,20 @@ export default function Home() {
   }
 
   const activeDemoId = demo?.mode === mode ? demo.id : null
-  const currentText = mode === 'image' ? '' : texts[mode]
-  const canSubmit = mode === 'image' ? !!intent && (!!file || !!activeDemoId) : currentText.trim().length > 0
+  const currentText = mode === 'image' || mode === 'media' ? '' : texts[mode]
+  const canSubmit =
+    mode === 'image'
+      ? !!intent && (!!file || !!activeDemoId)
+      : mode === 'media'
+        ? !!mediaFile
+        : currentText.trim().length > 0
 
   const onSubmit = () => {
     if (busy || !canSubmit) return
     if (mode === 'image') {
       void run({ mode, file, demoId: activeDemoId, imageUrl: previewUrl, intent })
+    } else if (mode === 'media') {
+      void run({ mode, file: mediaFile })
     } else {
       void run({ mode, text: currentText, demoId: activeDemoId })
     }
@@ -181,6 +201,9 @@ export default function Home() {
           file={file}
           previewUrl={previewUrl}
           onFile={onFile}
+          mediaFile={mediaFile}
+          mediaUrl={mediaUrl}
+          onMediaFile={onMediaFile}
           intent={intent}
           onIntentChange={(i) => {
             setIntent(i)
@@ -196,7 +219,7 @@ export default function Home() {
         {phase === 'error' && error && <ErrorCard message={error} />}
 
         <div ref={resultRef} className="scroll-mt-20 space-y-6">
-          {busy && <StageProgress stage={stage} intent={runIntent} />}
+          {busy && <StageProgress stage={stage} intent={runIntent} media={mode === 'media'} />}
           {phase === 'result' && report && <ReportView report={report} originalUrl={reportImageUrl} />}
         </div>
 
