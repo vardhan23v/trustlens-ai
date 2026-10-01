@@ -20,16 +20,13 @@ def fetch(slot: str) -> None:
     src = SOURCES[slot]
     dest = MODEL_DIR / slot
     dest.mkdir(parents=True, exist_ok=True)
-    if src.get("fastembed"):
-        from fastembed import TextEmbedding
-        TextEmbedding(model_name=src["fastembed"], cache_dir=str(dest))
-    elif src.get("snapshot"):
+    if src.get("snapshot"):
         snapshot_download(src["repo"], local_dir=str(dest))
     else:
         for name in src["files"]:
             hf_hub_download(src["repo"], name, local_dir=str(dest))
     size = sum(f.stat().st_size for f in dest.rglob("*") if f.is_file()) / 1e6
-    print(f"ok   {slot:16s} {size:7.1f} MB  <- {src.get('repo') or src.get('fastembed')}")
+    print(f"ok   {slot:16s} {size:7.1f} MB  <- {src['repo']}")
 
 
 if __name__ == "__main__":

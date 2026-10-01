@@ -18,6 +18,5 @@ psycopg[binary]
 onnxruntime
 rapidocr-onnxruntime
 faster-whisper
-fastembed
 tokenizers
 huggingface_hub

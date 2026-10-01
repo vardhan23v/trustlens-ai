@@ -12,13 +12,14 @@ import numpy as np
 from PIL import Image
 
 from app.ml import registry
-from app.ml.registry import MODEL_DIR, SOURCES, loader
+from app.ml.registry import MODEL_DIR, loader
 
 
 def _session(path):
     import onnxruntime as ort
     so = ort.SessionOptions()
-    so.intra_op_num_threads = max(1, min(4, os.cpu_count() or 2))
+    so.intra_op_num_threads = registry.threads()
+    so.inter_op_num_threads = 1
     so.enable_cpu_mem_arena = False  # give memory back between runs: the container is small
     so.log_severity_level = 3
     return ort.InferenceSession(str(path), so, providers=["CPUExecutionProvider"])
@@ -125,8 +126,8 @@ def detect_speech(pcm: np.ndarray) -> dict:
 @loader("asr")
 def _load_asr():
     from faster_whisper import WhisperModel
-    return WhisperModel(str(MODEL_DIR / "asr"), device="cpu", compute_type="int8",
-                        cpu_threads=max(1, min(4, os.cpu_count() or 2)))
+    return WhisperModel(str(MODEL_DIR / "asr"), device="cpu", compute_type="int8", cpu_threads=registry.threads(),
+                        num_workers=1)
 
 
 def transcribe(pcm: np.ndarray) -> dict:
@@ -146,7 +147,7 @@ def transcribe(pcm: np.ndarray) -> dict:
 @loader("ocr")
 def _load_ocr():
     from rapidocr_onnxruntime import RapidOCR
-    return RapidOCR()
+    return RapidOCR(intra_op_num_threads=registry.threads(), inter_op_num_threads=1)
 
 
 def read_text(image_bytes: bytes) -> dict:
@@ -165,9 +166,25 @@ def read_text(image_bytes: bytes) -> dict:
 # ---------------------------------------------------------------- embeddings
 @loader("embedding")
 def _load_embed():
-    from fastembed import TextEmbedding
-    return TextEmbedding(model_name=SOURCES["embedding"]["fastembed"], cache_dir=str(MODEL_DIR / "embedding"),
-                         local_files_only=True)
+    from tokenizers import Tokenizer
+    base = MODEL_DIR / "embedding"
+    tok = Tokenizer.from_file(str(base / "tokenizer.json"))
+    tok.enable_truncation(max_length=128)
+    tok.no_padding()
+    sess = _session(base / "onnx" / "model_quantized.onnx")
+    return {"tok": tok, "sess": sess, "inputs": [i.name for i in sess.get_inputs()]}
+
+
+def _embed(m: dict, text: str) -> np.ndarray:
+    enc = m["tok"].encode(text)
+    mask = np.array([enc.attention_mask], dtype=np.int64)
+    feed = {"input_ids": np.array([enc.ids], dtype=np.int64), "attention_mask": mask,
+            "token_type_ids": np.array([enc.type_ids], dtype=np.int64)}
+    hidden = m["sess"].run(None, {k: v for k, v in feed.items() if k in m["inputs"]})[0]
+    if hidden.ndim == 3:  # token embeddings: mean-pool over real tokens (how this model was trained)
+        w = mask[..., None].astype(np.float32)
+        hidden = (hidden * w).sum(axis=1) / np.maximum(w.sum(axis=1), 1e-9)
+    return hidden[0]
 
 
 def similarity(query: str, texts: list[str]) -> list[float]:
@@ -175,7 +192,7 @@ def similarity(query: str, texts: list[str]) -> list[float]:
     m = registry.get("embedding")
     if m is None:
         raise RuntimeError("unavailable")
-    vecs = np.array(list(m.embed([query] + texts)))
+    vecs = np.array([_embed(m, t) for t in [query] + texts])
     vecs = vecs / (np.linalg.norm(vecs, axis=1, keepdims=True) + 1e-9)
     return [round(float(v), 3) for v in vecs[1:] @ vecs[0]]
 

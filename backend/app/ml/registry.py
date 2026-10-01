@@ -32,7 +32,8 @@ SOURCES: dict[str, dict] = {
     "asr": {"repo": "Systran/faster-whisper-base", "snapshot": True},
     "nli": {"repo": "onnx-community/multilingual-MiniLMv2-L6-mnli-xnli-ONNX",
             "files": ["onnx/model_quantized.onnx", "config.json", "tokenizer.json"]},
-    "embedding": {"fastembed": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"},
+    "embedding": {"repo": "Xenova/paraphrase-multilingual-MiniLM-L12-v2",
+                  "files": ["onnx/model_quantized.onnx", "config.json", "tokenizer.json"]},
 }
 
 
@@ -52,7 +53,7 @@ class Spec:
 
 SPECS: list[Spec] = [
     Spec("image_synthetic", "AI-generated image detector", "Community Forensics ViT (ONNX)", ("image",),
-         ("ai_generated", "news_claim"), "Gemini visual examination + EXIF/ELA", ("onnxruntime",), "onnx/model.onnx", 450,
+         ("ai_generated", "news_claim"), "Gemini visual examination + EXIF/ELA", ("onnxruntime",), "onnx/model.onnx", 250,
          ("Trained on photographs versus generated images; screenshots, documents and graphics are outside its training data",
           "Independent tests put detectors of this kind near 78% accuracy on unseen generators; heavy compression and resizing lower it",
           "Its score is not a calibrated probability")),
@@ -63,25 +64,26 @@ SPECS: list[Spec] = [
           "Detects generated imagery, not face-swap deepfakes of a real recording",
           "Its score is not a calibrated probability")),
     Spec("audio_spoof", "Synthetic-speech detector", "wav2vec2 deepfake-audio classifier (ONNX)", ("video", "audio"),
-         ("ai_generated", "news_claim"), "Gemini listening to the audio track", ("onnxruntime",), "onnx/model.onnx", 900,
+         ("ai_generated", "news_claim"), "Gemini listening to the audio track", ("onnxruntime",), "onnx/model.onnx", 650,
          ("Fine-tuned on ASVspoof 2021 replay-attack data: its ability to recognise modern text-to-speech or cloned voices is unproven",
           "Sensitive to compression, background music and language; English training data",
           "Treated as weak evidence: it never decides the audio state on its own")),
     Spec("asr", "Speech transcription", "Whisper base (faster-whisper, int8) with voice-activity detection",
          ("video", "audio"), ("news_claim", "ai_generated"), "Gemini transcribes the audio", ("faster_whisper",),
-         "model.bin", 500,
+         "model.bin", 350,
          ("The base model makes more errors than larger Whisper models, especially on Indian languages, names and noisy audio",
           "Can repeat or invent words in silence or music")),
     Spec("ocr", "OCR", "RapidOCR (PP-OCR, ONNX)", ("image",), ("news_claim",), "Gemini reads the visible text",
-         ("rapidocr_onnxruntime",), "", 400,
+         ("rapidocr_onnxruntime",), "", 250,
          ("Bundled models read Latin script and Chinese; Indic scripts are not recognised",
           "Small, stylised or low-contrast text is often missed")),
-    Spec("embedding", "Semantic relevance (embeddings)", "paraphrase-multilingual-MiniLM-L12-v2 (ONNX)",
-         ("image", "video", "audio", "text"), ("news_claim",), "keyword search of news feeds", ("fastembed",), "*", 600,
+    Spec("embedding", "Semantic relevance (embeddings)", "paraphrase-multilingual-MiniLM-L12-v2 (ONNX, int8)",
+         ("image", "video", "audio", "text"), ("news_claim",), "keyword search of news feeds",
+         ("onnxruntime", "tokenizers"), "onnx/model_quantized.onnx", 300,
          ("Compares the claim with each source headline only, not the article body",)),
     Spec("nli", "Entailment / contradiction (NLI)", "multilingual MiniLMv2 NLI (ONNX, int8)",
          ("image", "video", "audio", "text"), ("news_claim",), "Gemini reads each source headline's stance",
-         ("onnxruntime", "tokenizers"), "onnx/model_quantized.onnx", 450,
+         ("onnxruntime", "tokenizers"), "onnx/model_quantized.onnx", 300,
          ("Judges a headline against the claim; headlines phrased as questions usually come out neutral",
           "Trained on machine-translated sentence pairs: weaker outside English")),
     Spec("text_synthetic", "AI-written text detector", "none evaluated", ("text",), ("ai_generated",),
@@ -110,8 +112,6 @@ def _weights_present(spec: Spec) -> bool:
     if not spec.marker:
         return True
     base = MODEL_DIR / spec.slot
-    if spec.marker == "*":
-        return base.is_dir() and any(base.rglob("*.onnx"))
     return (base / spec.marker).resolve().exists()
 
 
@@ -131,18 +131,39 @@ def why_unavailable(slot: str) -> str:
     return ""
 
 
-def _memory_free_mb() -> Optional[float]:
-    """Headroom under the container's memory limit (cgroup v2, then v1). None when there is no limit."""
-    for limit_f, used_f in (("/sys/fs/cgroup/memory.max", "/sys/fs/cgroup/memory.current"),
-                            ("/sys/fs/cgroup/memory/memory.limit_in_bytes", "/sys/fs/cgroup/memory/memory.usage_in_bytes")):
+def memory() -> dict:
+    """Container memory in MB (cgroup v2, then v1): limit, and what the process really holds. Page cache
+    from reading model files is reclaimable, so it is not counted as used. {} when there is no limit."""
+    for base, limit_f, stat_f, anon_key in (("/sys/fs/cgroup", "memory.max", "memory.stat", "anon"),
+                                            ("/sys/fs/cgroup/memory", "memory.limit_in_bytes", "memory.stat", "rss")):
         try:
-            limit = Path(limit_f).read_text().strip()
+            limit = (Path(base) / limit_f).read_text().strip()
             if limit == "max" or int(limit) > 1 << 50:
-                return None
-            return (int(limit) - int(Path(used_f).read_text().strip())) / 1e6
+                return {}
+            stat = dict(line.split()[:2] for line in (Path(base) / stat_f).read_text().splitlines() if line.strip())
+            used = int(stat.get(anon_key, 0)) + int(stat.get("shmem", 0))
+            return {"limit_mb": round(int(limit) / 1e6), "used_mb": round(used / 1e6),
+                    "free_mb": round((int(limit) - used) / 1e6)}
         except (OSError, ValueError):
             continue
-    return None
+    return {}
+
+
+def _memory_free_mb() -> Optional[float]:
+    m = memory()
+    return m["free_mb"] - 120 if m else None  # keep a margin for the request itself
+
+
+def threads() -> int:
+    """CPU threads a model may use: the container's CPU quota, not the host's core count (using every host
+    core on a fractional-CPU container makes inference dozens of times slower)."""
+    try:
+        quota, period = Path("/sys/fs/cgroup/cpu.max").read_text().split()[:2]
+        if quota != "max":
+            return max(1, min(4, round(int(quota) / int(period))))
+    except (OSError, ValueError):
+        pass
+    return max(1, min(4, os.cpu_count() or 2))
 
 
 def unload(keep: str = "") -> None:
@@ -150,6 +171,11 @@ def unload(keep: str = "") -> None:
         for slot in [s for s in _loaded if s != keep]:
             _loaded.pop(slot, None)
         gc.collect()
+        try:  # hand freed memory back to the OS (glibc keeps it otherwise)
+            import ctypes
+            ctypes.CDLL("libc.so.6").malloc_trim(0)
+        except OSError:
+            pass
 
 
 def get(slot: str) -> Any:
@@ -162,10 +188,10 @@ def get(slot: str) -> Any:
             return _loaded[real]
         need = BY_SLOT[real].est_mb
         free = _memory_free_mb()
-        if free is not None and free < need * 1.15:
+        if free is not None and free < need:
             unload()  # make room: only one or two models are needed at a time
             free = _memory_free_mb()
-        if free is not None and free < need * 1.15:
+        if free is not None and free < need:
             # not remembered as a failure: memory may be free again on a later request
             log.warning("model %s skipped: %.0f MB free, about %d MB needed", real, free, need)
             return None

@@ -36,7 +36,7 @@ def _selftest() -> dict:
                            lambda r: "labels: " + ", ".join(f"{x['label']} {x[x['label']]:.2f}" for x in r))
     return {
         "seconds": round(time.time() - t0, 1),
-        "memory_free_mb": registry._memory_free_mb(),
+        "memory": registry.memory(), "threads": registry.threads(),
         "inputs": {"image": "demo_viral_post.jpg", "audio": "selftest_speech.mp3 (a text-to-speech voice)",
                    "claim": CLAIM, "headlines": HEADLINES},
         "models": {slot: {"model": registry.BY_SLOT[slot].model, **run} for slot, run in runs.items()},
