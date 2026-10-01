@@ -69,7 +69,7 @@ Deployed on Railway: https://trustlens-ai-production-5b04.up.railway.app
 ## Trust score — auditable by design
 
 Start at 100. Each de-duplicated signal subtracts `PENALTIES[key] × severity` (high 1.0 · medium 0.6 · low 0.3).
-Deductions are capped per category (image forensics 25 · URL/domain 30 · message content 45 · claim evidence 40).
+Deductions are capped per category (image forensics 25 · URL/domain 30 · message content 60 · claim evidence 40).
 Bands: **75–100 LOW · 45–74 MEDIUM · 0–44 HIGH**. Everything is in one file: `backend/app/rules/scoring.py`.
 The report shows the full deduction table, so the number can be checked by hand.
 

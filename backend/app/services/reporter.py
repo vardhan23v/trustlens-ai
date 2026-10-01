@@ -265,9 +265,9 @@ def build(state) -> TrustReport:
     if state.all_urls_match_claimed:  # known-org attenuation: a real bank SMS is not a scam for sounding urgent
         signals = [s for s in signals if s.key != "url_shortener"]
         for s in signals:
-            if s.key in ("urgency", "action_pressure") and "injection" not in s.title.lower():
+            if s.key in ("urgency", "action_pressure", "kyc_threat", "threat") and "injection" not in s.title.lower():
                 s.severity = "low"
-        notes.append("URLs match the claimed organisation; urgency signals were capped at low.")
+        notes.append("Every link is on the claimed organisation's own domain; pressure signals were capped at low.")
 
     extracted: Extracted = state.extracted
     evidence: list[Evidence] = []

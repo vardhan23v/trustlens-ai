@@ -53,8 +53,8 @@ def host_alias_hits(url: ParsedUrl) -> list[tuple[dict, str]]:
             continue
         for a in o["aliases"]:
             compact = a.replace(" ", "")
-            if a in WEAK_ALIASES:
-                continue
+            if a in WEAK_ALIASES and not (len(compact) >= 8 and compact in url.host):
+                continue  # weak aliases count only when spelt out inside a host ("incometax-refund.online")
             if compact in tokens or (len(compact) >= 5 and compact in url.host):
                 hits.append((o, a))
                 break

@@ -17,15 +17,22 @@ RULES: list[tuple[str, str, str, str, list[str]]] = [
     ("threat", "high", "Threat of consequences",
      "Threatening to block an account or take legal action creates fear so the reader acts without checking.",
      [r"account.{0,25}(blocked|suspended|closed|deactivated|frozen|terminated)", r"legal action", r"\barrest",
-      r"\bpenalty", r"court notice", r"(account|sim|number).{0,15}(band|block|suspend) ho jayega"]),
+      r"\bpenalty", r"court notice", r"(account|sim|number).{0,15}(band|block|suspend) ho jayega",
+      r"will be (blocked|suspended|disconnected|terminated|closed|deactivated|frozen|locked)",
+      r"(is|has been|been) (blocked|suspended|frozen|locked|held|flagged)\b",
+      r"(block|suspend|close|disconnect|terminate)\w* (your |the )?(account|card|sim|number|wallet|connection|service)",
+      r"money laundering", r"case (is |has been )?(registered|filed)", r"\bfir\b"]),
     ("credential_request", "high", "Asks for OTP or credentials",
      "Genuine organisations do not ask for an OTP, PIN, password or card details through a message or link.",
      [r"\botp\b", r"one[- ]time password", r"\bpin\b", r"\bcvv\b", r"password", r"passcode", r"\bmpin\b",
-      r"aadhaar (number|no)", r"pan (number|no)", r"card (number|no)", r"otp (batao|share|bhejo)"]),
+      r"aadhaar (number|no)", r"pan (number|no)", r"card (number|no)", r"otp (batao|share|bhejo)",
+      r"bank (account )?details", r"account (number|details)", r"card details", r"payment details",
+      r"\b(verification |security |the )code\b"]),
     ("financial_request", "high", "Payment request",
      "The content asks for money or directs a payment; confirm the payee through an official channel first.",
      [r"pay(ment)?.{0,25}(\bfee\b|charge|amount|₹|\brs\.?(?![a-z])|\binr\b)", r"(send|transfer).{0,20}(money|₹|\brs\.?(?![a-z])|amount)",
-      r"processing fee", r"security deposit", r"refundable", r"\bupi (id|to)\b",
+      r"processing fee", r"security deposit", r"refundable", r"(clearance|delivery|handling|activation) (fee|charge)",
+      r"safe account", r"\bupi id\b",
       r"@(okaxis|oksbi|okhdfcbank|okicici|ybl|paytm|upi)\b", r"(paise|paisa) (bhejo|bhej do)", r"payment (karo|karein)"]),
     ("registration_fee", "high", "Upfront fee request",
      "Asking for a fee before a job, registration or onboarding is a common advance-fee scam pattern.",
@@ -35,13 +42,19 @@ RULES: list[tuple[str, str, str, str, list[str]]] = [
      "A tight deadline pressures the reader to act before checking.",
      [r"immediately", r"urgent(ly)?", r"within \d+ ?(hours?|hrs?|minutes?|mins?)", r"today only",
       r"last (chance|day)", r"expir(es|ing|ed) (today|tonight|in)", r"act now", r"right now",
-      r"avoid (late fee|penalty|suspension)", r"\bturant\b", r"\babhi\b", r"\bjaldi\b", r"aaj hi"]),
+      r"avoid (late fee|penalty|suspension|arrest|disconnection)", r"\btonight\b", r"\bin \d+ ?(hours?|hrs?|minutes?|mins?)\b",
+      r"(suspended|blocked|closed|disconnected|terminated|expire[sd]?) (today|tomorrow)", r"limited (seats|time|offer)", r"\bturant\b", r"\babhi\b", r"\bjaldi\b", r"aaj hi"]),
     ("action_pressure", "medium", "Pressure to act",
      "The message pushes a specific action such as clicking, calling or forwarding.",
      [r"click(ing)? (here|the link|below|now|this)", r"tap (here|the link)", r"link par click", r"verify (now|your|immediately)",
       r"confirm (now|your)", r"download (now|the app|this app)", r"call (now|this number|immediately)",
-      r"forward (this|to \d+)", r"share (with|to) \d+"]),
+      r"forward (this|to \d+)", r"share (with|to) \d+",
+      r"(call|contact|whatsapp|message)\b.{0,45}[6-9]\d{9}", r"press \d\b", r"(contact|message) (us |me )?on (telegram|whatsapp)",
+      r"download(ing)? (this|the) app"]),
 ]
+PRIZE_BAIT = [r"you (have )?won\b", r"\blottery\b", r"lucky draw", r"\bjackpot\b", r"free (iphone|gift|recharge|laptop)",
+              r"claim your (prize|reward|gift)", r"earn (rs\.?|₹|inr) ?[\d,]+ ?(daily|per day|a day|weekly)",
+              r"(rs\.?|₹) ?[\d,]+ per day", r"work from home.{0,40}earn"]
 FAKE_AUTHORITY = [r"\brbi\b", r"reserve bank", r"income tax", r"cyber ?(cell|crime|police)", r"\bpolice\b", r"\bcourt\b",
                   r"government of india", r"\bministry\b", r"customs", r"\bcbi\b", r"enforcement directorate", r"\btrai\b"]
 # Text addressed to an AI system. Content is data: this is reported, never obeyed.
@@ -50,6 +63,8 @@ INJECTION = [r"ignore (all |any |the |your )?(previous |prior |above |earlier )?
              r"(report|rate|mark|classify|label) this (message|content|text|image)? ?as (low|safe|genuine|no) ?(risk)?",
              r"disregard (the |all |any )?(above|previous|system)", r"you are now (a|an|in)\b"]
 HIGH_RISK_KEYS = {"kyc_threat", "threat", "financial_request", "credential_request", "registration_fee"}
+# A transaction alert ("Rs 500 debited ... to SWIGGY") reports a payment; it does not ask for one.
+_TRANSACTION_ALERT = re.compile(r"\b(debited|credited|was successful|has been (processed|shipped|renewed|received))\b", re.I)
 
 
 @dataclass
@@ -100,7 +115,8 @@ def _without_warnings(text: str) -> str:
 
 # A credential word alone is not a request: an Aadhaar card says "Aadhaar number", a bank letter says
 # "password". It counts only when the same sentence asks the reader to hand it over.
-_REQUEST_VERB = re.compile(r"\b(share|send|enter|provide|submit|give|tell|type|reply|batao|bataye|bhejo|dalo|daalein)\b", re.I)
+_REQUEST_VERB = re.compile(
+    r"\b(share|send|enter|provide|submit|give|tell|type|reply|update|confirm|batao|bataye|bhejo|dalo|daalein)\b", re.I)
 
 
 def _credential_hit(text: str, patterns: list[str]) -> tuple[str, int] | None:
@@ -166,13 +182,26 @@ def run(text: str) -> RuleResult:
             more = f" ({count} matching phrases found.)" if count > 1 else ""
             fired[key] = _mk(key, sev, title, expl + more, quote)
 
+    if "financial_request" in fired and _TRANSACTION_ALERT.search(text) and not (
+            fired.keys() & {"threat", "credential_request", "kyc_threat", "registration_fee"}):
+        del fired["financial_request"]
+
     if fired.keys() & {"threat", "financial_request", "credential_request", "urgency"}:
         hit = _first_hit(text, FAKE_AUTHORITY)
         if hit:
+            # an official body + a threat + a demand for money or credentials is the classic "digital arrest" shape
+            strong = "threat" in fired and fired.keys() & {"financial_request", "credential_request"}
             fired["fake_authority"] = _mk(
-                "fake_authority", "medium", "Authority name-dropping",
+                "fake_authority", "high" if strong else "medium", "Authority name-dropping",
                 "An official body is named alongside pressure or a request; scammers borrow authority to seem credible.",
                 hit[0])
+
+    hit = _first_hit(text, PRIZE_BAIT)
+    if hit:
+        fired["misleading_claim"] = _mk(
+            "misleading_claim", "high", "Prize or easy-money bait",
+            "Unexpected winnings or effortless earnings are a classic lure; real prizes never need a fee or your details.",
+            hit[0])
 
     hit = _first_hit(text, INJECTION)
     if hit:  # replaces any ordinary action_pressure hit: same key, counted once

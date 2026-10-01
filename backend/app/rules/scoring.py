@@ -4,7 +4,7 @@ PENALTIES = {
     "domain_mismatch": 25, "financial_request": 20, "impersonation": 20,
     "registration_fee": 20, "credential_request": 20, "kyc_threat": 15,
     "suspicious_url": 15, "inconsistency": 15, "fake_authority": 15,
-    "misleading_claim": 15, "ela_anomaly": 15, "urgency": 10, "threat": 10,
+    "misleading_claim": 15, "ela_anomaly": 15, "urgency": 10, "threat": 15,
     "action_pressure": 10, "editing_software_exif": 10, "ip_url": 10,
     "url_shortener": 8, "http_not_https": 5, "unusual_language": 5,
     "exif_time_mismatch": 5, "debunked_by_source": 40,
@@ -18,7 +18,7 @@ CATEGORY_OF = {
     "ai_generation_indicator": "visual_analysis", "manipulation_indicator": "visual_analysis",
     "visual_inconsistency": "visual_analysis",
 }  # everything else -> "message_content"
-CATEGORY_CAPS = {"image_forensics": 25, "visual_analysis": 45, "url_domain": 30, "message_content": 45, "claim_evidence": 40}
+CATEGORY_CAPS = {"image_forensics": 25, "visual_analysis": 45, "url_domain": 30, "message_content": 60, "claim_evidence": 40}
 BANDS = [(75, "LOW"), (45, "MEDIUM"), (0, "HIGH")]
 
 SEVERITY_RANK = {"low": 1, "medium": 2, "high": 3}
