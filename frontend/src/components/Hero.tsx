@@ -34,7 +34,7 @@ export default function Hero({ onStart }: Props) {
           See Beyond the <span className="hero-gradient">Digital Surface.</span>
         </h2>
         <p className="hero-in mt-5 max-w-xl text-base leading-relaxed text-muted [--d:160ms] sm:text-lg">
-          Upload a screenshot or paste a message or viral claim. TrustLens returns an evidence-backed Trust Report:
+          Upload an image, video or audio clip. TrustLens returns an evidence-backed Trust Report:
           every signal shows what was found, the quoted evidence, and whether it came from a rule or from Gemini.
         </p>
         <ul className="hero-in mt-6 flex flex-wrap gap-2 [--d:240ms]" aria-label="What TrustLens does">

@@ -44,6 +44,7 @@ export const STATE_TONE: Record<AssessmentState, Tone> = {
   SUPPORTED: 'low',
   CONTRADICTED: 'high',
   MISLEADING_CONTEXT: 'high',
+  EVIDENCE_UNAVAILABLE: 'med',
 }
 
 export default function RiskBadge({ risk, verdict, hasSignals, assessment }: Props) {

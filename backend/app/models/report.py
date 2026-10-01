@@ -3,6 +3,7 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
+from app.models.evidence import EvidenceSignal
 from app.models.llm_outputs import Extracted
 
 Severity = Literal["high", "medium", "low"]
@@ -10,7 +11,8 @@ Category = Literal["image_forensics", "visual_analysis", "url_domain", "message_
 Intent = Literal["synthetic_detection", "artifact_authenticity"]
 AssessmentState = Literal["LIKELY_AUTHENTIC", "LIKELY_FABRICATED", "LIKELY_SYNTHETIC", "MANIPULATED",
                           "INCONCLUSIVE", "UNVERIFIED", "NOT_ASSESSED", "SUPPORTED", "CONTRADICTED",
-                          "MISLEADING_CONTEXT"]
+                          "MISLEADING_CONTEXT", "EVIDENCE_UNAVAILABLE"]
+Mode = Literal["news_claim", "ai_generated"]
 Source = Literal["RULE", "GEMINI"]
 
 DISCLAIMER = "Trust Score is a risk indicator, not proof of authenticity or fraud."
@@ -78,6 +80,23 @@ class Assessment(BaseModel):
     state: AssessmentState
     label: str
     summary: str
+    confidence: str = ""  # low | medium | high: how much relevant evidence stands behind the state
+    basis: str = ""  # what that confidence rests on
+
+
+class Stage(BaseModel):
+    """One pipeline stage as it actually went. No percentages, nothing invented."""
+    name: str
+    status: Literal["done", "skipped", "failed", "unavailable"]
+    detail: str = ""
+
+
+class SpecialistModel(BaseModel):
+    slot: str
+    task: str
+    candidate: str = ""
+    status: str = "MODEL_UNAVAILABLE"
+    detail: str = ""
 
 
 class AxisAssessment(Assessment):
@@ -87,6 +106,16 @@ class AxisAssessment(Assessment):
 class TrustReport(BaseModel):
     analysis_mode: Literal["live", "demo_cached"] = "live"
     input_type: Literal["image", "text", "claim", "media"]
+    # The product mode the user chose and the kind of file they uploaded.
+    mode: Optional[Mode] = None
+    report_id: str = ""  # set when the analysis completes; reopens the stored report if a database is configured
+    media_type: str = ""  # image | video | audio
+    stages: list[Stage] = Field(default_factory=list)
+    specialist_models: list[SpecialistModel] = Field(default_factory=list)
+    media_metadata: dict = Field(default_factory=dict)  # container facts read by ffmpeg
+    evidence_signals: list[EvidenceSignal] = Field(default_factory=list)  # every finding in one schema
+    change_factors: list[str] = Field(default_factory=list)  # "What would change the assessment?"
+    score_scope: str = ""  # what the 0-100 number does and does not measure in this mode
     # Claim verification: decomposed claims, dated source timeline, and the article that was fetched (if any).
     claims: list[ClaimStatus] = Field(default_factory=list)
     timeline: list[TimelineEvent] = Field(default_factory=list)

@@ -7,7 +7,7 @@ interface Props {
   disabled?: boolean
 }
 
-const TYPE_GLYPH: Record<string, string> = { image: '▣', text: '✉', claim: '❝' }
+const TYPE_GLYPH: Record<string, string> = { image: '▣', claim: '❝' }
 
 export default function DemoChips({ demos, activeId, onPick, disabled }: Props) {
   if (demos.length === 0) return null

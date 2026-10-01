@@ -11,6 +11,7 @@ import EvidenceList from './EvidenceList'
 import ExtractedPanel from './ExtractedPanel'
 import ModeBanner from './ModeBanner'
 import PdfButton from './PdfButton'
+import PipelinePanel from './PipelinePanel'
 import RecommendationBox from './RecommendationBox'
 import RiskBadge from './RiskBadge'
 import SignalCard from './SignalCard'
@@ -42,21 +43,35 @@ export default function ReportView({ report, originalUrl }: Props) {
   const inconsistencies = report.inconsistencies ?? []
   const notes = report.notes ?? []
   const ela = report.ela
+  const changeFactors = (report.change_factors ?? []).length > 0 ? report.change_factors : (report.confidence_boosters ?? [])
+  const news = report.mode === 'news_claim'
 
   return (
     <section aria-label="Trust Report" className="space-y-6">
-      {(report.analysis_intent || (report.assessment_axes ?? []).length > 0) && <AssessmentPanel report={report} />}
+      <AssessmentPanel report={report} />
       <div className="card animate-fade-up grid gap-6 p-4 sm:p-6 md:grid-cols-[auto_1fr] md:gap-8">
         <div className="flex justify-center md:items-start">
-          <TrustGauge score={report.trust_score} risk={report.risk_level} />
+          <div className="max-w-[15rem] text-center">
+            {report.mode && report.gemini_error && (report.signals ?? []).length === 0 ? (
+              <div className="grid size-[180px] place-items-center rounded-full border-[12px] border-border text-center">
+                <p className="px-4 text-sm font-semibold text-muted">
+                  Not scored
+                  <span className="mt-1 block text-[11px] font-normal">the examination did not complete</span>
+                </p>
+              </div>
+            ) : (
+              <TrustGauge score={report.trust_score} risk={report.risk_level} />
+            )}
+            {report.score_scope && <p className="mt-2 text-[11px] leading-snug text-muted">{report.score_scope}</p>}
+          </div>
         </div>
         <div className="min-w-0 space-y-4">
           <div className="flex flex-wrap items-start gap-x-4 gap-y-3">
             <RiskBadge
               hasSignals={report.signals.length > 0}
               risk={report.risk_level}
-              verdict={report.verdict}
-              assessment={report.verdict ? null : report.overall_assessment}
+              verdict={report.mode ? null : report.verdict}
+              assessment={report.mode ? report.overall_assessment : report.verdict ? null : report.overall_assessment}
             />
             <div className="pt-1">
               <ModeBanner analysisMode={report.analysis_mode} geminiError={report.gemini_error} />
@@ -78,11 +93,13 @@ export default function ReportView({ report, originalUrl }: Props) {
               </ul>
             </div>
           )}
-          {(report.confidence_boosters ?? []).length > 0 && (
+          {changeFactors.length > 0 && (
             <div>
-              <h3 className="section-title mb-1.5">What would increase confidence?</h3>
+              <h3 className="section-title mb-1.5">
+                {report.mode === 'ai_generated' ? 'What would increase confidence?' : 'What would change the assessment?'}
+              </h3>
               <ul className="list-disc space-y-1 pl-5 text-sm text-text marker:text-accent-soft">
-                {report.confidence_boosters.map((item, i) => (
+                {changeFactors.map((item, i) => (
                   <li key={i}>{item}</li>
                 ))}
               </ul>
@@ -93,7 +110,7 @@ export default function ReportView({ report, originalUrl }: Props) {
         </div>
       </div>
 
-      {report.input_type === 'image' && ela && (
+      {(report.input_type === 'image' || report.media_type === 'image') && ela && (
         <ElaCompare
           originalUrl={originalUrl}
           heatmapB64={ela.heatmap_b64}
@@ -104,9 +121,16 @@ export default function ReportView({ report, originalUrl }: Props) {
         />
       )}
 
+      {news && (
+        <>
+          <ClaimBreakdown claims={report.claims ?? []} timeline={report.timeline ?? []} article={report.article ?? null} />
+          <EvidenceList evidence={report.evidence ?? []} />
+        </>
+      )}
+
       <div className={signals.length === 0 && report.verdict ? 'hidden' : undefined}>
         <h2 className="section-title mb-3">
-          Signals <span className="font-mono text-text">({signals.length})</span>
+          {news ? 'Media and content findings' : 'Synthetic-media findings'} <span className="font-mono text-text">({signals.length})</span>
         </h2>
         {signals.length > 0 ? (
           <div className="grid gap-3 lg:grid-cols-2">
@@ -116,7 +140,8 @@ export default function ReportView({ report, originalUrl }: Props) {
           </div>
         ) : (
           <p className="card p-4 text-sm text-muted">
-            No risk signals were raised by the rule checks or Gemini. This does not verify the content as authentic.
+            No indicators were raised by the deterministic checks or Gemini. That is an absence of evidence, not proof
+            that the media is authentic.
           </p>
         )}
       </div>
@@ -130,9 +155,7 @@ export default function ReportView({ report, originalUrl }: Props) {
 
       <DeductionTable signals={signals} breakdown={report.score_breakdown ?? []} score={report.trust_score} />
 
-      <ClaimBreakdown claims={report.claims ?? []} timeline={report.timeline ?? []} article={report.article ?? null} />
-
-      <EvidenceList evidence={report.evidence ?? []} />
+      <PipelinePanel report={report} />
 
       {report.extracted && <ExtractedPanel extracted={report.extracted} />}
 

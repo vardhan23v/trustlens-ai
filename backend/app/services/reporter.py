@@ -216,9 +216,9 @@ def _assess_image(state, signals: list[Signal], risk: str) -> tuple[Assessment, 
     Both are derived here from signals; Gemini's own opinion is only one input and never the final word."""
     by_key = {s.key: s for s in signals}
     ela, editor = by_key.get("ela_anomaly"), by_key.get("editing_software_exif")
-    gemini_ok = not state.crew_error
     synthetic = state.intent == "synthetic_detection"
     visual = state.visual
+    gemini_ok = (visual is not None) if synthetic else not state.crew_error
 
     # --- media ---
     # counted from Gemini's own list: merged signals are de-duplicated by key
@@ -271,8 +271,22 @@ def _assess_image(state, signals: list[Signal], risk: str) -> tuple[Assessment, 
     return media, artifact
 
 
-MEDIA_KIND_KEY = {"visual_manipulation": "manipulation_indicator", "ai_generation": "ai_generation_indicator",
-                  "audio": "audio_anomaly", "av_sync": "av_inconsistency", "context": "inconsistency"}
+MEDIA_KIND_KEY = {"visual_manipulation": "manipulation_indicator", "visual_ai_generation": "ai_generation_indicator",
+                  "audio_synthesis": "audio_anomaly", "audio_edit": "audio_anomaly", "av_sync": "av_inconsistency",
+                  "context": "inconsistency"}
+_AUDIO_WORDS = re.compile(r"\b(voice|voiceover|speech|audio|sound|prosody|pronunciation|spoken|breath|tone)\b", re.I)
+
+
+def obs_kind(o, audio_only: bool) -> str:
+    """Normalise an observation's kind. Older/looser labels are placed by what the observation talks about."""
+    k = o.kind.strip().lower()
+    if k in MEDIA_KIND_KEY:
+        return k
+    if k.startswith("audio") or (audio_only and k != "av_sync"):
+        return "audio_synthesis"
+    if k == "ai_generation":
+        return "audio_synthesis" if _AUDIO_WORDS.search(f"{o.title} {o.evidence}") else "visual_ai_generation"
+    return k if k in ("av_sync", "context") else "visual_manipulation"
 SPECIALIST_NOTE = ("Specialist models: video deepfake detector - MODEL_UNAVAILABLE; audio spoof detector - "
                    "MODEL_UNAVAILABLE; container metadata (ffmpeg) - UNAVAILABLE. Gemini alone examined this file.")
 MEDIA_RECOMMENDATION = {
@@ -294,12 +308,12 @@ def _media_axis(heading: str, claimed: str, obs: list, gemini_ok: bool, what: st
     high = [o for o in strong if o.severity.lower() == "high"]
     where = ", ".join(sorted({o.timestamp for o in strong if o.timestamp})[:4])
     at = f" (at {where})" if where else ""
-    if not gemini_ok:
-        return AxisAssessment(heading=heading, state="INCONCLUSIVE", label="Inconclusive",
-                              summary="Gemini could not examine the file, so nothing was assessed.")
     if claimed == "not_applicable":
         return AxisAssessment(heading=heading, state="NOT_ASSESSED", label="Not applicable",
                               summary=f"The file has no {what} to assess.")
+    if not gemini_ok:
+        return AxisAssessment(heading=heading, state="INCONCLUSIVE", label="Inconclusive",
+                              summary="Gemini could not examine the file, so nothing was assessed.")
     if claimed in ("manipulated", "inconsistent") and strong:
         label = "Inconsistent" if claimed == "inconsistent" else "Manipulation indicators"
         return AxisAssessment(heading=heading, state="MANIPULATED", label=label,
@@ -316,19 +330,31 @@ def _media_axis(heading: str, claimed: str, obs: list, gemini_ok: bool, what: st
 
 
 def _assess_media(state) -> list[AxisAssessment]:
-    m, ok = state.media, not state.crew_error
+    m = state.media
+    ok = m is not None  # a later failure (e.g. the claim search) does not undo a completed examination
     obs = m.observations if m else []
     kinds = lambda *k: [o for o in obs if o.kind.strip().lower() in k]  # noqa: E731
     # decided from the file's own type, not from the model's description of it
     is_audio_only = (getattr(state, "media_mime", "") or "").startswith("audio/")
+    meta = getattr(state, "media_meta", {}) or {}
+    no_audio = bool(meta) and "audio_codec" not in meta
+    applicable = lambda v: "inconclusive" if (v or "").strip().lower() == "not_applicable" else v  # noqa: E731
+    for o in obs:
+        o.kind = obs_kind(o, is_audio_only)
     axes = [
-        _media_axis("Visual authenticity", "not_applicable" if is_audio_only else (m.visual_assessment if m else ""),
-                    kinds("visual_manipulation", "ai_generation"), ok, "picture"),
-        _media_axis("Audio authenticity", m.audio_assessment if m else "", kinds("audio"), ok, "audio"),
-        _media_axis("Audio-visual consistency", "not_applicable" if is_audio_only else (m.av_consistency if m else ""),
-                    kinds("av_sync"), ok, "combined picture and sound"),
+        # a video always has a picture: "not applicable" from the model is treated as "could not judge"
+        _media_axis("Visual authenticity", "not_applicable" if is_audio_only else applicable(m.visual_assessment if m else ""),
+                    kinds("visual_manipulation", "visual_ai_generation"), ok, "picture"),
+        _media_axis("Audio authenticity", m.audio_assessment if m else "", kinds("audio_synthesis", "audio_edit"), ok, "audio"),
+        _media_axis("Audio-visual consistency", "not_applicable" if is_audio_only or no_audio
+                    else applicable(m.av_consistency if m else ""), kinds("av_sync"), ok, "combined picture and sound"),
     ]
-    if m and m.spoken_claims:
+    if m and m.spoken_claims and getattr(state, "mode", ""):
+        axes.append(AxisAssessment(
+            heading="Spoken claims", state="NOT_ASSESSED", label="Not checked in this mode",
+            summary=f"{len(m.spoken_claims)} factual claim(s) were heard. AI-Generated mode examines the recording "
+                    "itself, not whether what is said is true: use News / Claim mode for that."))
+    elif m and m.spoken_claims:
         axes.append(AxisAssessment(
             heading="Spoken claims", state="UNVERIFIED", label="Not verified",
             summary=f"{len(m.spoken_claims)} factual claim(s) were heard but not checked against any source. An "
@@ -369,10 +395,14 @@ def build(state) -> TrustReport:
                                   uncertainty=i.uncertainty) for i in visual.indicators]
     media = getattr(state, "media", None)
     if media:  # video/audio: Gemini's timestamped observations become GEMINI signals
+        audio_only = (getattr(state, "media_mime", "") or "").startswith("audio/")
         for o in media.observations:
+            o.kind = obs_kind(o, audio_only)
+            if o.kind == "context" and getattr(state, "mode", "") == "ai_generated":
+                continue  # this mode examines the media itself; content questions belong to News / Claim
             when = f"At {o.timestamp}: " if o.timestamp.strip() else ""
             llm_signals.append(LLMSignal(
-                key=MEDIA_KIND_KEY.get(o.kind.strip().lower(), "visual_inconsistency"), title=o.title,
+                key=MEDIA_KIND_KEY.get(o.kind, "visual_inconsistency"), title=o.title,
                 severity=o.severity, explanation=o.explanation, evidence=(when + o.evidence).strip() if o.evidence.strip() else "",
                 uncertainty=o.uncertainty))
     signals = merge(rule_signals, llm_signals)
@@ -488,7 +518,9 @@ def build(state) -> TrustReport:
     boosters: list[str] = []
     if state.input_type == "claim":
         provided = (["image"] if state.image_format else []) + (["url"] if state.article else []) + (
-            ["text"] if (state.caption if state.image_format else state.text).strip() and not state.article else [])
+            ["text"] if (state.caption if state.image_format else state.text).strip() and not state.article
+            and not getattr(state, "media_mime", "") else []) + (
+            [state.media_type or "media"] if getattr(state, "media_mime", "") else [])
         claim_axis = {
             "DEBUNKED_BY_SOURCE": ("CONTRADICTED", "Contradicted by sources"),
             "VERIFIED_BY_SOURCE": ("SUPPORTED", "Supported by sources"),
@@ -525,9 +557,38 @@ def build(state) -> TrustReport:
                     notes.append("Visible time/place clues: " + "; ".join(ni.time_place_clues[:4]))
                 extracted.extracted_text = ni.extracted_text or extracted.extracted_text
             caveats.append("A visually authentic image does not make the claim true, and an edited image does not make every claim false")
-        overall = Assessment(state=axes[-1].state if state.image_format and axes[-1].state == "MISLEADING_CONTEXT" else axes[0].state,
-                             label=axes[-1].label if state.image_format and axes[-1].state == "MISLEADING_CONTEXT" else axes[0].label,
-                             summary=axes[0].summary)
+        if getattr(state, "media_mime", ""):  # claim heard in a video / audio file
+            m_axes = _assess_media(state)[:3]
+            axes += [a for a in m_axes if a.state != "NOT_ASSESSED"]
+            bad = [a for a in m_axes if a.state in ("MANIPULATED", "LIKELY_SYNTHETIC")]
+            ctx_obs = [o for o in (media.observations if media else [])
+                       if o.kind.strip().lower() == "context" and o.evidence.strip() and o.severity.lower() != "low"]
+            if not media:
+                ctx = ("INCONCLUSIVE", "Inconclusive", "Gemini could not examine the file, so content and claim were not compared.")
+            elif verdict_value == "DEBUNKED_BY_SOURCE" and not bad:
+                ctx = ("MISLEADING_CONTEXT", "Misleading context",
+                       "No manipulation was observed in the recording, but the claim made in it is contradicted by "
+                       "sources. A genuine recording can carry a false statement.")
+            elif ctx_obs:
+                ctx = ("INCONCLUSIVE", "Context questions",
+                       "; ".join(f"{o.timestamp + ': ' if o.timestamp else ''}{o.title}" for o in ctx_obs[:3]))
+            elif verdict_value == "VERIFIED_BY_SOURCE" and not bad:
+                ctx = ("SUPPORTED", "Consistent with sources", "The claim is supported by sources and nothing observed conflicts with it.")
+            else:
+                ctx = ("UNVERIFIED", "Not established",
+                       "A recording alone cannot show when, where or by whom it was made, or that what is said is true.")
+            axes.append(AxisAssessment(heading="Context consistency", state=ctx[0], label=ctx[1], summary=ctx[2]))
+            caveats += ["A genuine recording can contain a false claim, and a synthetic voice can state a true one",
+                        "Speakers are not identified: who is speaking was not verified"]
+            if media:
+                caveats += [l for l in media.limitations[:2] if l.strip()]
+                if media.description:
+                    notes.append("What Gemini observed: " + media.description.strip()[:300])
+                if media.language:
+                    notes.append(f"Speech language: {media.language}.")
+        has_ctx = (state.image_format or getattr(state, "media_mime", "")) and axes[-1].state == "MISLEADING_CONTEXT"
+        overall = Assessment(state=axes[-1].state if has_ctx else axes[0].state,
+                             label=axes[-1].label if has_ctx else axes[0].label, summary=axes[0].summary)
     else:
         provided = []
     if state.input_type == "media":
@@ -575,7 +636,7 @@ def build(state) -> TrustReport:
             caveats.insert(0, "A screenshot cannot prove that a payment, message or notice really happened or was sent")
             caveats.append("AI generation was not assessed in this mode")
 
-    return TrustReport(
+    report = TrustReport(
         analysis_mode=state.analysis_mode, input_type=state.input_type, analysis_intent=intent,
         assessment_axes=axes, inputs_provided=provided, claims=claim_rows, timeline=timeline, article=getattr(state, "article", None),
         overall_assessment=overall, media_assessment=media, artifact_assessment=artifact,
@@ -587,3 +648,7 @@ def build(state) -> TrustReport:
         gemini_error="gemini_unavailable" if state.crew_error else None,
         agents_used=state.agents_used, caveats=caveats,
     )
+    if getattr(state, "mode", ""):
+        from app.services import fusion  # mode-aware layer: evidence schema, per-dimension confidence, stages
+        report = fusion.enrich(report, state)
+    return report

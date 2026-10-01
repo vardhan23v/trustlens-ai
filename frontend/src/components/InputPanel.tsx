@@ -1,156 +1,72 @@
-import type { Demo, Health, InputType, Intent } from '../types/report'
-import IntentCards, { INTENT_COPY } from './IntentCards'
+import type { Demo, Health, Mode } from '../types/report'
 import AnalyzeButton from './AnalyzeButton'
 import DemoChips from './DemoChips'
-import DropZone from './DropZone'
-import MediaDrop from './MediaDrop'
-import TextArea from './TextArea'
+import ModeCards, { MODE_COPY } from './ModeCards'
+import UploadZone from './UploadZone'
 
 interface Props {
-  mode: InputType
-  onModeChange: (mode: InputType) => void
+  mode: Mode | null
+  onModeChange: (mode: Mode | null) => void
   onSubmit: () => void
   busy: boolean
   canSubmit: boolean
-  text: string
-  onTextChange: (value: string) => void
   file: File | null
   previewUrl: string | null
   onFile: (file: File | null) => void
-  claimFile: File | null
-  claimUrl: string | null
-  onClaimFile: (file: File | null) => void
-  mediaFile: File | null
-  mediaUrl: string | null
-  onMediaFile: (file: File | null) => void
-  intent: Intent | null
-  onIntentChange: (intent: Intent) => void
   demos: Demo[]
   activeDemoId: string | null
   onPickDemo: (demo: Demo) => void
   health: Health | null
 }
 
-const TABS: { id: InputType; label: string }[] = [
-  { id: 'image', label: 'Screenshot / Image' },
-  { id: 'text', label: 'Message / Text' },
-  { id: 'claim', label: 'Fake News / Claim' },
-  { id: 'media', label: 'Video / Audio' },
-]
-
-const PLACEHOLDER: Record<'text' | 'claim', string> = {
-  text: 'Paste SMS / WhatsApp / email…',
-  claim: 'Paste a headline, viral claim or forwarded message — or a link to a news article…',
-}
-
 export default function InputPanel(props: Props) {
-  const { mode, onModeChange, busy, health } = props
+  const { mode, busy, health } = props
+  const demos = props.demos.filter((d) => d.mode === mode)
 
   return (
-    <section aria-label="Content to analyze" className="card p-4 sm:p-6">
-      <div
-        role="tablist"
-        aria-label="Input type"
-        className="grid grid-cols-2 gap-1 rounded-xl sm:grid-cols-4 border border-border bg-bg/60 p-1 sm:inline-grid"
-      >
-        {TABS.map((t) => {
-          const selected = t.id === mode
-          return (
-            <button
-              key={t.id}
-              type="button"
-              role="tab"
-              id={`tab-${t.id}`}
-              aria-selected={selected}
-              aria-controls="input-tabpanel"
-              disabled={busy}
-              onClick={() => onModeChange(t.id)}
-              className={`rounded-lg px-2 py-2 text-xs font-medium transition-colors disabled:cursor-not-allowed sm:px-4 sm:text-sm ${
-                selected ? 'bg-surface-2 text-accent shadow-[inset_0_0_0_1px_var(--color-border)]' : 'text-muted hover:text-text'
-              }`}
-            >
-              {t.label}
-            </button>
-          )
-        })}
-      </div>
-
-      <div id="input-tabpanel" role="tabpanel" aria-labelledby={`tab-${mode}`} className="mt-4">
-        {mode === 'image' ? (
-          <div className="space-y-4">
-            <IntentCards value={props.intent} onChange={props.onIntentChange} disabled={busy} />
-            {props.intent ? (
-              <div className="animate-fade-up space-y-2">
-                <p className="text-sm text-text">
-                  <span className="text-muted">Mode: </span>
-                  <span className="font-medium text-accent">{INTENT_COPY[props.intent].title}</span>
-                  <span className="text-muted"> — {INTENT_COPY[props.intent].upload}</span>
-                </p>
-                <DropZone file={props.file} previewUrl={props.previewUrl} onFile={props.onFile} disabled={busy} />
-              </div>
-            ) : (
-              <p className="rounded-xl border border-dashed border-border px-4 py-6 text-center text-sm text-muted">
-                Choose what you want to verify to continue.
-              </p>
-            )}
-          </div>
-        ) : mode === 'media' ? (
-          <MediaDrop file={props.mediaFile} previewUrl={props.mediaUrl} onFile={props.onMediaFile} disabled={busy} />
-        ) : mode === 'claim' ? (
-          <div className="space-y-3">
-            <ul className="flex flex-wrap gap-2 text-xs text-muted" aria-label="Accepted inputs">
-              {['Paste a claim', 'Paste article text', 'Enter an article URL', 'Attach a screenshot / image'].map((x) => (
-                <li key={x} className="rounded-full border border-border px-2.5 py-0.5">
-                  {x}
-                </li>
-              ))}
-            </ul>
-            <TextArea
-              value={props.text}
-              onChange={props.onTextChange}
-              placeholder={PLACEHOLDER.claim}
-              label="News claim, article text or article link to check"
-              disabled={busy}
-            />
-            <div>
-              <p className="mb-2 text-xs text-muted">
-                Optional: attach the screenshot or image being shared. With an image, the text above is treated as the
-                claim made about it; media authenticity and the claim are assessed separately.
-              </p>
-              <DropZone file={props.claimFile} previewUrl={props.claimUrl} onFile={props.onClaimFile} disabled={busy} />
+    <section aria-label="Media to analyze" className="card p-4 sm:p-6">
+      {!mode ? (
+        <ModeCards value={mode} onChange={props.onModeChange} disabled={busy} />
+      ) : (
+        <div className="animate-fade-up space-y-4">
+          {/* The selected mode stays visible for the whole run and on the report. */}
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-accent/60 bg-accent/10 px-4 py-3">
+            <div className="min-w-0">
+              <p className="text-[11px] font-medium uppercase tracking-wider text-muted">Mode</p>
+              <p className="text-base font-bold tracking-wide text-accent">{MODE_COPY[mode].title}</p>
             </div>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => props.onModeChange(null)}
+              className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-text transition-colors hover:border-accent-soft hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Change mode
+            </button>
           </div>
-        ) : (
-          <TextArea
-            value={props.text}
-            onChange={props.onTextChange}
-            placeholder={PLACEHOLDER[mode]}
-            label="Message text to analyze"
-            disabled={busy}
-          />
-        )}
-      </div>
-
-      <div className="mt-4">
-        <DemoChips demos={props.demos} activeId={props.activeDemoId} onPick={props.onPickDemo} disabled={busy} />
-      </div>
-
-      <div className="mt-5 flex flex-wrap items-end justify-between gap-4">
-        <AnalyzeButton busy={busy} disabled={!props.canSubmit} onClick={props.onSubmit} />
-        {health && (
-          <p className="flex items-center gap-2 text-xs text-muted">
-            <span
-              aria-hidden="true"
-              className={`size-1.5 rounded-full ${health.gemini_configured ? 'bg-risk-low' : 'bg-risk-med'}`}
-            />
-            {health.gemini_configured ? (
-              <span className="font-mono">{health.gemini_model}</span>
-            ) : (
-              <span>Gemini key not configured — rule-based results only</span>
+          <p className="text-sm text-text">{MODE_COPY[mode].upload}</p>
+          <UploadZone file={props.file} previewUrl={props.previewUrl} onFile={props.onFile} disabled={busy} />
+          {demos.length > 0 && (
+            <DemoChips demos={demos} activeId={props.activeDemoId} onPick={props.onPickDemo} disabled={busy} />
+          )}
+          <div className="flex flex-wrap items-end justify-between gap-4 pt-1">
+            <AnalyzeButton busy={busy} disabled={!props.canSubmit} onClick={props.onSubmit} />
+            {health && (
+              <p className="flex items-center gap-2 text-xs text-muted">
+                <span
+                  aria-hidden="true"
+                  className={`size-1.5 rounded-full ${health.gemini_configured ? 'bg-risk-low' : 'bg-risk-med'}`}
+                />
+                {health.gemini_configured ? (
+                  <span className="font-mono">{health.gemini_model}</span>
+                ) : (
+                  <span>Gemini key not configured — deterministic checks only</span>
+                )}
+              </p>
             )}
-          </p>
-        )}
-      </div>
+          </div>
+        </div>
+      )}
     </section>
   )
 }

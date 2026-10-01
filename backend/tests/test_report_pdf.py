@@ -122,7 +122,7 @@ def main() -> None:
     reset()
 
     # analysis itself is independent of OpenRouter
-    assert client.post("/api/analyze/demo/scam_sms").status_code == 200
+    assert client.post("/api/analyze/demo/genuine_notice").status_code == 200
     assert client.post("/api/report/pdf", json={"report": {"nope": 1}}).status_code == 422
     assert client.post("/api/report/pdf", json={}).status_code == 422
     print("ALL PASSED")

@@ -1,5 +1,5 @@
 import type { Assessment, TrustReport } from '../types/report'
-import { INTENT_COPY } from './IntentCards'
+import { MODE_COPY } from './ModeCards'
 import { STATE_TONE } from './RiskBadge'
 import type { Tone } from './RiskBadge'
 
@@ -7,80 +7,61 @@ const TONE_TEXT: Record<Tone, string> = { low: 'text-risk-low', med: 'text-risk-
 const TONE_BORDER: Record<Tone, string> = { low: 'border-l-risk-low', med: 'border-l-risk-med', high: 'border-l-risk-high' }
 const TONE_MARK: Record<Tone, string> = { low: '✓', med: '⚠', high: '✗' }
 
-function Axis({ heading, a, primary, from }: { heading: string; a: Assessment; primary: boolean; from: 'left' | 'right' }) {
-  const tone = a.state === 'NOT_ASSESSED' && a.label !== 'No editing traces found' ? 'med' : (STATE_TONE[a.state] ?? 'med')
+function Axis({ heading, a, from }: { heading: string; a: Assessment; from: 'left' | 'right' }) {
+  const tone = STATE_TONE[a.state] ?? 'med'
   const quiet = a.state === 'NOT_ASSESSED'
   return (
     <div className={`reveal reveal-${from} rounded-xl border border-border border-l-4 bg-surface-2/60 p-4 ${quiet ? 'border-l-border' : TONE_BORDER[tone]}`}>
-      <p className="section-title flex items-center gap-2">
-        {heading}
-        {primary && (
-          <span className="rounded-full border border-accent-soft px-1.5 py-px text-[10px] font-medium normal-case tracking-normal text-accent">
-            what you asked
-          </span>
-        )}
-      </p>
+      <p className="section-title">{heading}</p>
       <p className={`mt-1.5 flex items-center gap-2 font-semibold ${quiet ? 'text-muted' : TONE_TEXT[tone]}`}>
         <span aria-hidden="true">{quiet ? '–' : TONE_MARK[tone]}</span>
         {a.label}
       </p>
       <p className="mt-1 text-sm text-muted">{a.summary}</p>
+      {a.confidence && (
+        <p className="mt-2 border-t border-border/60 pt-2 text-xs text-muted">
+          <span className="font-medium text-text">Confidence: {a.confidence}.</span> {a.basis}
+        </p>
+      )}
     </div>
   )
 }
 
-/** Image reports: the selected intent, and media authenticity vs artifact authenticity as separate answers. */
+/** Report header: the selected mode, the media type, and each question answered separately. */
 export default function AssessmentPanel({ report }: { report: TrustReport }) {
   const axes = report.assessment_axes ?? []
-  if (axes.length > 0) {
-    return (
-      <div className="card animate-fade-up p-4 sm:p-6">
-        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-          <h2 className="text-lg font-semibold text-text">
-            {report.input_type === 'claim' ? 'Claim Verification Report' : 'Video / Audio Trust Report'}
-          </h2>
-          <p className="text-xs text-muted">
-            {(report.inputs_provided ?? []).length > 0
-              ? `Inputs: ${report.inputs_provided.join(' + ')}`
-              : 'Each question is answered separately'}
-          </p>
-        </div>
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
-          {axes.map((a, i) => (
-            <Axis key={a.heading} heading={a.heading} a={a} primary={false} from={i % 2 === 0 ? 'left' : 'right'} />
-          ))}
-        </div>
-        <p className="mt-3 text-xs text-muted">
-          {report.input_type === 'claim'
-            ? 'A visually authentic image does not make the claim true, and an edited image does not make every claim false.'
-            : 'An authentic recording can still contain a false claim, and a synthetic voice can say something true.'}{' '}
-          TrustLens does not prove truth; it shows what supports, contradicts or remains unknown.
-        </p>
-      </div>
-    )
-  }
-  const intent = report.analysis_intent
-  if (!intent || !report.media_assessment || !report.artifact_assessment) return null
+  if (axes.length === 0 || !report.mode) return null
+  const news = report.mode === 'news_claim'
   return (
     <div className="card animate-fade-up p-4 sm:p-6">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <h2 className="text-lg font-semibold text-text">{INTENT_COPY[intent].report}</h2>
+        <h2 className="text-lg font-semibold text-text">{MODE_COPY[report.mode].report}</h2>
         <p className="text-xs text-muted">
-          Analysis intent: <span className="font-medium text-accent">{INTENT_COPY[intent].title}</span>
+          Mode: <span className="font-medium text-accent">{MODE_COPY[report.mode].title}</span>
+          {report.media_type && (
+            <>
+              {' '}
+              · Media: <span className="font-medium uppercase text-text">{report.media_type}</span>
+            </>
+          )}
+          {report.report_id && (
+            <>
+              {' '}
+              · <span className="font-mono">{report.report_id}</span>
+            </>
+          )}
         </p>
       </div>
-      <div className="mt-4 grid gap-3 md:grid-cols-2">
-        <Axis from="left" heading="Media authenticity" a={report.media_assessment} primary={intent === 'synthetic_detection'} />
-        <Axis
-          from="right"
-          heading="Claim / artifact authenticity"
-          a={report.artifact_assessment}
-          primary={intent === 'artifact_authenticity'}
-        />
+      <div className={`mt-4 grid gap-3 ${axes.length > 1 ? 'md:grid-cols-2' : ''}`}>
+        {axes.map((a, i) => (
+          <Axis key={a.heading} heading={a.heading} a={a} from={i % 2 === 0 ? 'left' : 'right'} />
+        ))}
       </div>
       <p className="mt-3 text-xs text-muted">
-        These are separate questions: “not AI-generated” does not mean “true”, and a genuine-looking screenshot can
-        still be fraudulent.
+        {news
+          ? 'Claim, media and context are separate questions: an authentic image can carry a false claim, and an AI-generated image can accompany a true one.'
+          : 'This mode examines the media itself. It does not check whether anything shown or said is true: use News / Claim for that.'}{' '}
+        TrustLens reports likelihood, evidence and uncertainty. It does not prove truth.
       </p>
     </div>
   )

@@ -102,11 +102,15 @@ class NewsImageExtract(BaseModel):
     caption_consistency: str = "no_caption"  # consistent | inconsistent | cannot_tell | no_caption
     mismatches: list[str] = Field(default_factory=list)  # concrete conflicts between image and caption
     visual_notes: str = ""  # visually odd regions, or "none"
+    # media authenticity of the image itself, judged in the same call
+    media_assessment: str = "inconclusive"  # likely_synthetic|likely_authentic|manipulated|inconclusive
+    indicators: list[VisualIndicator] = Field(default_factory=list)
+    language: str = ""
 
 
 class MediaObservation(BaseModel):
     timestamp: str = ""  # "MM:SS" where it occurs; empty only if it applies to the whole file
-    kind: str = "visual"  # visual_manipulation | ai_generation | audio | av_sync | context
+    kind: str = "visual"  # visual_manipulation | visual_ai_generation | audio_synthesis | audio_edit | av_sync | context
     title: str = ""
     severity: str = "medium"
     explanation: str = ""
@@ -121,6 +125,7 @@ class MediaAssessment(BaseModel):
     transcript: str = ""
     language: str = ""
     spoken_claims: list[str] = Field(default_factory=list)
+    on_screen_text: str = ""  # captions, tickers, banners visible in the frames (video only)
     description: str = ""
     observations: list[MediaObservation] = Field(default_factory=list)
     visual_assessment: str = "inconclusive"  # likely_authentic|manipulated|likely_synthetic|inconclusive|not_applicable

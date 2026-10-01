@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { downloadPdfReport, isMock } from '../services/api'
+import { downloadPdfReport } from '../services/api'
 import type { TrustReport } from '../types/report'
 
 const FALLBACK = 'PDF generation is temporarily unavailable. Your TrustLens analysis is still available.'
@@ -8,7 +8,6 @@ const FALLBACK = 'PDF generation is temporarily unavailable. Your TrustLens anal
 export default function PdfButton({ report }: { report: TrustReport }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  if (isMock()) return null
 
   const onClick = async () => {
     setBusy(true)

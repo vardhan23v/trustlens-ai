@@ -5,46 +5,37 @@ import Header from '../components/Header'
 import Hero from '../components/Hero'
 import InputPanel from '../components/InputPanel'
 import ReportView from '../components/ReportView'
-import StageProgress, { HOLD_STAGE, STAGES } from '../components/StageProgress'
-import { analyze, getDemos, getHealth, isMock } from '../services/api'
-import type { Demo, Health, InputType, Intent, TrustReport } from '../types/report'
+import StageProgress from '../components/StageProgress'
+import { mediaTypeOf } from '../components/UploadZone'
+import { analyze, getDemos, getHealth } from '../services/api'
+import type { Demo, Health, MediaType, Mode, TrustReport } from '../types/report'
 import { useRevealAll } from '../hooks/useReveal'
-import { prefersReducedMotion, sleep } from '../utils/format'
+import { prefersReducedMotion } from '../utils/format'
 
 type Phase = 'idle' | 'analyzing' | 'result' | 'error'
 
-const STAGE_MS = 400
-
 interface RunRequest {
-  mode: InputType
-  text?: string
+  mode: Mode
   file?: File | null
   demoId?: string | null
-  intent?: Intent | null
-  /** Image shown as "original" in the report (image mode only). */
+  mediaType: MediaType
+  /** Image shown as "original" next to the compression map (image input only). */
   imageUrl?: string | null
 }
 
 export default function Home() {
-  const [mode, setMode] = useState<InputType>('image')
-  const [texts, setTexts] = useState<{ text: string; claim: string }>({ text: '', claim: '' })
-  // Image tab: the user first says what they want verified.
-  const [intent, setIntent] = useState<Intent | null>(null)
-  const [runIntent, setRunIntent] = useState<Intent | null>(null)
+  // The user first chooses what they are verifying; the choice stays on screen.
+  const [mode, setMode] = useState<Mode | null>(null)
   const [file, setFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
-  const [claimFile, setClaimFile] = useState<File | null>(null)
-  const [claimUrl, setClaimUrl] = useState<string | null>(null)
-  const [mediaFile, setMediaFile] = useState<File | null>(null)
-  const [mediaUrl, setMediaUrl] = useState<string | null>(null)
-  // The demo currently loaded into an input; cleared as soon as the user edits that input.
-  const [demo, setDemo] = useState<{ id: string; mode: InputType } | null>(null)
+  // The demo currently loaded; cleared as soon as the user picks a file or changes mode.
+  const [demoId, setDemoId] = useState<string | null>(null)
 
   const [demos, setDemos] = useState<Demo[]>([])
   const [health, setHealth] = useState<Health | null>(null)
 
   const [phase, setPhase] = useState<Phase>('idle')
-  const [stage, setStage] = useState(0)
+  const [running, setRunning] = useState<{ mode: Mode; mediaType: MediaType } | null>(null)
   const [report, setReport] = useState<TrustReport | null>(null)
   const [reportImageUrl, setReportImageUrl] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -61,11 +52,9 @@ export default function Home() {
     getDemos()
       .then((d) => alive && setDemos(d))
       .catch(() => alive && setDemos([])) // backend down → no chips, no crash
-    if (!isMock()) {
-      getHealth()
-        .then((h) => alive && setHealth(h))
-        .catch(() => undefined)
-    }
+    getHealth()
+      .then((h) => alive && setHealth(h))
+      .catch(() => undefined)
     const urls = objectUrls.current
     return () => {
       alive = false
@@ -75,49 +64,33 @@ export default function Home() {
 
   const run = useCallback(async (req: RunRequest) => {
     const id = ++runId.current
-    const reduced = prefersReducedMotion()
     setPhase('analyzing')
+    setRunning({ mode: req.mode, mediaType: req.mediaType })
     setError(null)
     setReport(null)
-    setAnnounce('')
-    setStage(0)
-    setRunIntent(req.mode === 'image' ? (req.intent ?? null) : null)
-
-    // Timed walk through the stages; holds on "Gemini reasoning" until the response arrives.
-    const timer = window.setInterval(() => setStage((s) => Math.min(s + 1, HOLD_STAGE)), STAGE_MS)
+    setAnnounce('Analysis started')
     try {
-      const [result] = await Promise.all([analyze(req), sleep(reduced ? 0 : HOLD_STAGE * STAGE_MS + 500)])
-      if (id !== runId.current) return
-      window.clearInterval(timer)
-      setStage(STAGES.length) // flash the remaining stages complete
-      await sleep(reduced ? 0 : 450)
+      const result = await analyze(req)
       if (id !== runId.current) return
       setReport(result)
-      setReportImageUrl(req.mode === 'image' ? (req.imageUrl ?? null) : null)
+      setReportImageUrl(req.mediaType === 'image' ? (req.imageUrl ?? null) : null)
       setPhase('result')
       setAnnounce('Analysis complete')
       requestAnimationFrame(() =>
-        resultRef.current?.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' }),
+        resultRef.current?.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' }),
       )
     } catch (e) {
       if (id !== runId.current) return
       setError(e instanceof Error && e.message ? e.message : 'Something went wrong. Please try again.')
       setPhase('error')
-    } finally {
-      window.clearInterval(timer)
     }
   }, [])
 
   const busy = phase === 'analyzing'
 
-  const onTextChange = (value: string) => {
-    if (mode === 'image' || mode === 'media') return
-    setTexts((t) => ({ ...t, [mode]: value }))
-    if (demo?.mode === mode) setDemo(null)
-  }
-
   const onFile = (f: File | null) => {
     setFile(f)
+    setDemoId(null)
     if (f) {
       const url = URL.createObjectURL(f)
       objectUrls.current.push(url)
@@ -125,72 +98,32 @@ export default function Home() {
     } else {
       setPreviewUrl(null)
     }
-    if (demo?.mode === 'image') setDemo(null)
   }
 
-  const onClaimFile = (f: File | null) => {
-    setClaimFile(f)
-    if (f) {
-      const url = URL.createObjectURL(f)
-      objectUrls.current.push(url)
-      setClaimUrl(url)
-    } else {
-      setClaimUrl(null)
-    }
-    if (demo?.mode === 'claim') setDemo(null)
-  }
-
-  const onMediaFile = (f: File | null) => {
-    setMediaFile(f)
-    if (f) {
-      const url = URL.createObjectURL(f)
-      objectUrls.current.push(url)
-      setMediaUrl(url)
-    } else {
-      setMediaUrl(null)
+  const onModeChange = (m: Mode | null) => {
+    setMode(m)
+    if (demoId) {
+      setDemoId(null)
+      setPreviewUrl(null)
     }
   }
 
   const onPickDemo = (d: Demo) => {
     if (busy) return
-    setMode(d.input_type)
-    setDemo({ id: d.id, mode: d.input_type })
-    if (d.input_type === 'image') {
-      setIntent('artifact_authenticity') // the demo notices are artifact checks
-      setFile(null)
-      setPreviewUrl(d.image_url)
-    } else if (d.input_type !== 'media') {
-      const key = d.input_type
-      setTexts((t) => ({ ...t, [key]: d.text ?? '' }))
-    }
+    setMode(d.mode)
+    setDemoId(d.id)
+    setFile(null)
+    setPreviewUrl(d.image_url)
     // Auto-run: one click shows the full report.
-    void run({
-      mode: d.input_type,
-      demoId: d.id,
-      text: d.text ?? '',
-      imageUrl: d.input_type === 'image' ? d.image_url : null,
-      intent: d.input_type === 'image' ? 'artifact_authenticity' : null,
-    })
+    void run({ mode: d.mode, demoId: d.id, mediaType: 'image', imageUrl: d.image_url })
   }
 
-  const activeDemoId = demo?.mode === mode ? demo.id : null
-  const currentText = mode === 'image' || mode === 'media' ? '' : texts[mode]
-  const canSubmit =
-    mode === 'image'
-      ? !!intent && (!!file || !!activeDemoId)
-      : mode === 'media'
-        ? !!mediaFile
-        : currentText.trim().length > 0 || (mode === 'claim' && !!claimFile)
+  const canSubmit = !!mode && (!!file || !!demoId)
 
   const onSubmit = () => {
-    if (busy || !canSubmit) return
-    if (mode === 'image') {
-      void run({ mode, file, demoId: activeDemoId, imageUrl: previewUrl, intent })
-    } else if (mode === 'media') {
-      void run({ mode, file: mediaFile })
-    } else {
-      void run({ mode, text: currentText, demoId: activeDemoId, file: mode === 'claim' ? claimFile : null })
-    }
+    if (busy || !mode || !canSubmit) return
+    const mediaType = file ? (mediaTypeOf(file) ?? 'image') : 'image'
+    void run({ mode, file, demoId, mediaType, imageUrl: previewUrl })
   }
 
   return (
@@ -204,46 +137,33 @@ export default function Home() {
       />
       <main className="space-y-6">
         <div ref={inputRef} className="reveal reveal-zoom scroll-mt-20">
-        <InputPanel
-          mode={mode}
-          onModeChange={setMode}
-          onSubmit={onSubmit}
-          busy={busy}
-          canSubmit={canSubmit}
-          text={currentText}
-          onTextChange={onTextChange}
-          file={file}
-          previewUrl={previewUrl}
-          onFile={onFile}
-          claimFile={claimFile}
-          claimUrl={claimUrl}
-          onClaimFile={onClaimFile}
-          mediaFile={mediaFile}
-          mediaUrl={mediaUrl}
-          onMediaFile={onMediaFile}
-          intent={intent}
-          onIntentChange={(i) => {
-            setIntent(i)
-            if (demo?.mode === 'image') setDemo(null)
-          }}
-          demos={demos}
-          activeDemoId={activeDemoId}
-          onPickDemo={onPickDemo}
-          health={health}
-        />
+          <InputPanel
+            mode={mode}
+            onModeChange={onModeChange}
+            onSubmit={onSubmit}
+            busy={busy}
+            canSubmit={canSubmit}
+            file={file}
+            previewUrl={previewUrl}
+            onFile={onFile}
+            demos={demos}
+            activeDemoId={demoId}
+            onPickDemo={onPickDemo}
+            health={health}
+          />
         </div>
 
         {phase === 'error' && error && <ErrorCard message={error} />}
 
         <div ref={resultRef} className="scroll-mt-20 space-y-6">
-          {busy && <StageProgress stage={stage} intent={runIntent} media={mode === 'media'} />}
+          {busy && running && <StageProgress mode={running.mode} mediaType={running.mediaType} />}
           {phase === 'result' && report && <ReportView report={report} originalUrl={reportImageUrl} />}
         </div>
 
         {phase === 'idle' && (
           <p className="px-1 text-sm text-muted">
-            Upload a screenshot, paste a message, or enter a news claim. TrustLens shows every signal behind the score —
-            what was found, where, and why it matters.
+            Choose a mode, then upload an image, video or audio clip. TrustLens shows the evidence behind every
+            assessment — what was found, what is missing, and how certain it is.
           </p>
         )}
       </main>

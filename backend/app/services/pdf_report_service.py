@@ -21,6 +21,17 @@ RISK = {"LOW": colors.HexColor("#15803D"), "MEDIUM": colors.HexColor("#B45309"),
 SEV = {"HIGH": colors.HexColor("#B91C1C"), "MEDIUM": colors.HexColor("#C2410C"), "LOW": colors.HexColor("#A16207")}
 SOURCE = {"RULE": "#4F46E5", "GEMINI": "#0F766E"}
 
+MODE_TITLE = {"news_claim": "NEWS / CLAIM VERIFICATION REPORT", "ai_generated": "AI-GENERATED MEDIA ANALYSIS"}
+MODE_NAME = {"news_claim": "News / Claim", "ai_generated": "AI-Generated"}
+STATE_TONE = {"LIKELY_AUTHENTIC": RISK["LOW"], "SUPPORTED": RISK["LOW"], "CONTRADICTED": RISK["HIGH"],
+              "MISLEADING_CONTEXT": RISK["HIGH"], "MANIPULATED": RISK["HIGH"], "LIKELY_SYNTHETIC": RISK["HIGH"],
+              "LIKELY_FABRICATED": RISK["HIGH"]}
+
+
+def _hex(c) -> str:
+    return "#" + c.hexval()[2:]
+
+
 _REPL = {"₹": "Rs ", "—": "-", "–": "-", "’": "'", "‘": "'", "“": '"', "”": '"', "…": "...", "×": "x", "·": "-", "≈": "~"}
 
 
@@ -74,12 +85,13 @@ def _footer(report_id: str, generated: str):
 def build_pdf(doc: ReportDoc, report: TrustReport, writer: str) -> tuple[bytes, str]:
     """Return (pdf bytes, report id). Score, risk level and signals are printed from the TrustLens result."""
     st = _styles()
-    report_id = "TL-" + uuid.uuid4().hex[:10].upper()
+    report_id = report.report_id or "TL-" + uuid.uuid4().hex[:10].upper()
+    subtitle = MODE_TITLE.get(report.mode or "", "DIGITAL TRUST REPORT")
     generated = datetime.now(timezone.utc).strftime("%d %b %Y, %H:%M UTC")
     width = A4[0] - 36 * mm
     story = []
 
-    header = Table([[Paragraph("TRUSTLENS AI", st["brand"])], [Paragraph("DIGITAL TRUST REPORT", st["sub"])],
+    header = Table([[Paragraph("TRUSTLENS AI", st["brand"])], [Paragraph(subtitle, st["sub"])],
                     [Paragraph("See Beyond the Digital Surface.", st["tag"])]], colWidths=[width])
     header.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), INK), ("LEFTPADDING", (0, 0), (-1, -1), 14),
                                 ("TOPPADDING", (0, 0), (0, 0), 14), ("BOTTOMPADDING", (0, -1), (-1, -1), 14),
@@ -92,7 +104,14 @@ def build_pdf(doc: ReportDoc, report: TrustReport, writer: str) -> tuple[bytes, 
     cells = [[Paragraph("TRUST SCORE", st["label"]), Paragraph("RISK LEVEL", st["label"]), Paragraph("INPUT TYPE", st["label"])],
              [Paragraph(f"{report.trust_score} / 100", big_score), Paragraph(_t(doc.risk_level), big_risk),
               Paragraph(_t(doc.input_type).upper(), ParagraphStyle("it", parent=st["big"], fontSize=12))]]
-    if report.verdict:  # claims: the fact-check status sits beside the message-level risk, never hidden by it
+    if report.mode and report.overall_assessment:
+        tone = STATE_TONE.get(report.overall_assessment.state, RISK["MEDIUM"])
+        cells[0][0], cells[0][2] = Paragraph("RISK INDICATOR", st["label"]), Paragraph("MEDIA TYPE", st["label"])
+        cells[1][2] = Paragraph((report.media_type or "-").upper(), ParagraphStyle("it2", parent=st["big"], fontSize=12))
+        cells[0].insert(0, Paragraph("ASSESSMENT", st["label"]))
+        cells[1].insert(0, Paragraph(_t(report.overall_assessment.label).upper(),
+                                     ParagraphStyle("oa", parent=st["big"], fontSize=10.5, leading=12.5, textColor=tone)))
+    elif report.verdict:  # claims: the fact-check status sits beside the message-level risk, never hidden by it
         tone = {"DEBUNKED_BY_SOURCE": RISK["HIGH"], "VERIFIED_BY_SOURCE": RISK["LOW"]}.get(report.verdict, RISK["MEDIUM"])
         cells[0].insert(2, Paragraph("FACT-CHECK STATUS", st["label"]))
         cells[1].insert(2, Paragraph(report.verdict.replace("_", " "),
@@ -104,10 +123,13 @@ def build_pdf(doc: ReportDoc, report: TrustReport, writer: str) -> tuple[bytes, 
     story.append(summary)
 
     meta = [f"Report ID: {report_id}", f"Generated: {generated}", f"Analysis type: {_t(doc.input_type)}"]
-    if report.analysis_intent:
+    if report.mode:
+        meta[2] = "Analysis mode: " + MODE_NAME[report.mode]
+        meta.append("Media type: " + (report.media_type or "-"))
+    elif report.analysis_intent:
         meta.append("Intent: " + {"synthetic_detection": "AI / Synthetic Detection",
                                   "artifact_authenticity": "Artifact Authenticity"}[report.analysis_intent])
-    if report.verdict:
+    if report.verdict and not report.mode:
         meta.append("Fact-check status: " + report.verdict.replace("_", " "))
     if report.overall_assessment:
         meta.append("Assessment: " + _t(report.overall_assessment.label))
@@ -117,7 +139,38 @@ def build_pdf(doc: ReportDoc, report: TrustReport, writer: str) -> tuple[bytes, 
 
     story += [Paragraph("EXECUTIVE SUMMARY", st["h"]), Paragraph(_t(doc.executive_summary, 2000), st["body"])]
 
-    if report.media_assessment and report.artifact_assessment:
+    if report.mode and report.assessment_axes:
+        if report.mode == "news_claim":
+            claims = [c.text for c in report.claims] or ([report.extracted.claim] if report.extracted.claim else [])
+            story.append(Paragraph("EXTRACTED CLAIM(S)", st["h"]))
+            story += ([Paragraph(f"{i}. " + _t(c, 400), st["body"]) for i, c in enumerate(claims[:5], 1)]
+                      or [Paragraph("No checkable factual claim could be extracted from the file.", st["body"])])
+        story.append(Paragraph("ASSESSMENT BY QUESTION" if report.mode == "news_claim" else "OVERALL ASSESSMENT", st["h"]))
+        rows = []
+        for a in report.assessment_axes:
+            conf = (f'<br/><font size="8" color="#5B6678">Confidence: {_t(a.confidence)}. {_t(a.basis, 260)}</font>'
+                    if a.confidence else "")
+            rows.append([Paragraph(f"<b>{_t(a.heading)}</b>", st["body"]),
+                         Paragraph(f'<font color="{_hex(STATE_TONE.get(a.state, MUTED))}"><b>{_t(a.label)}</b></font><br/>'
+                                   f'<font size="8.5" color="#5B6678">{_t(a.summary, 420)}</font>{conf}', st["body"])])
+        axes = Table(rows, colWidths=[42 * mm, width - 42 * mm])
+        axes.setStyle(TableStyle([("BOX", (0, 0), (-1, -1), 0.6, LINE), ("INNERGRID", (0, 0), (-1, -1), 0.6, LINE),
+                                  ("VALIGN", (0, 0), (-1, -1), "TOP"), ("TOPPADDING", (0, 0), (-1, -1), 6),
+                                  ("BOTTOMPADDING", (0, 0), (-1, -1), 6), ("BACKGROUND", (0, 0), (0, -1), PANEL)]))
+        story.append(axes)
+        if report.mode == "news_claim":
+            for title, stance in (("SUPPORTING EVIDENCE", "supports"), ("CONTRADICTING EVIDENCE", "refutes")):
+                items = [e for e in report.evidence if e.stance == stance]
+                story.append(Paragraph(f"{title} ({len(items)})", st["h"]))
+                story += ([Paragraph(f"- <b>{_t(e.source, 60)}</b> ({_t(e.source_type)}"
+                                     + (f", {_t(e.published)}" if e.published else ", date unknown") + f"): {_t(e.title or e.quote, 260)}",
+                                     st["body"]) for e in items[:8]]
+                          or [Paragraph("None found. Missing evidence is not evidence either way.", st["muted"])])
+            if report.timeline:
+                story.append(Paragraph("SOURCE TIMELINE", st["h"]))
+                story += [Paragraph(f"{_t(t.date)} - {_t(t.source, 60)} - {_t(t.stance)}: {_t(t.title, 200)}", st["muted"])
+                          for t in report.timeline[:10]]
+    elif report.media_assessment and report.artifact_assessment:
         rows = [[Paragraph("<b>Media authenticity</b><br/>" + _t(report.media_assessment.label) + "<br/>"
                            + f'<font size="8.5" color="#5B6678">{_t(report.media_assessment.summary)}</font>', st["body"]),
                  Paragraph("<b>Claim / artifact authenticity</b><br/>" + _t(report.artifact_assessment.label) + "<br/>"
@@ -128,7 +181,9 @@ def build_pdf(doc: ReportDoc, report: TrustReport, writer: str) -> tuple[bytes, 
                                   ("BOTTOMPADDING", (0, 0), (-1, -1), 7)]))
         story += [Spacer(1, 8), axes]
 
-    story.append(Paragraph(f"DETECTED SIGNALS ({len(doc.signals)})", st["h"]))
+    heading = {"news_claim": "MEDIA AND CONTENT FINDINGS", "ai_generated": "SYNTHETIC-MEDIA FINDINGS"}.get(
+        report.mode or "", "DETECTED SIGNALS")
+    story.append(Paragraph(f"{heading} ({len(doc.signals)})", st["h"]))
     if not doc.signals:
         story.append(Paragraph("No risk signals were detected by the rule checks or Gemini. This does not verify "
                                "the content as authentic.", st["body"]))
@@ -170,6 +225,22 @@ def build_pdf(doc: ReportDoc, report: TrustReport, writer: str) -> tuple[bytes, 
     if report.input_type != "image" and report.extracted.extracted_text.strip():
         story += [Paragraph("ANALYSED CONTENT (EXCERPT)", st["h"]),
                   Paragraph(_t(report.extracted.extracted_text, 420), st["mono"])]
+
+    if report.specialist_models:
+        story.append(Paragraph("MODEL FINDINGS", st["h"]))
+        story += [Paragraph(f"- {_t(m.task)}: <b>{_t(m.status)}</b>. {_t(m.detail, 200)}", st["muted"])
+                  for m in report.specialist_models]
+    if report.media_metadata:
+        story += [Paragraph("METADATA FINDINGS", st["h"]),
+                  Paragraph(_t("; ".join(f"{k}: {v}" for k, v in report.media_metadata.items()), 600), st["mono"])]
+    if report.stages:
+        story.append(Paragraph("ANALYSIS STAGES (AS THEY RAN)", st["h"]))
+        story += [Paragraph(f"- [{_t(sg.status)}] {_t(sg.name)}" + (f": {_t(sg.detail, 160)}" if sg.detail else ""), st["muted"])
+                  for sg in report.stages]
+    if report.change_factors:
+        story.append(Paragraph("WHAT WOULD INCREASE CONFIDENCE?" if report.mode == "ai_generated"
+                               else "WHAT WOULD CHANGE THE ASSESSMENT?", st["h"]))
+        story += [Paragraph("- " + _t(c, 300), st["body"]) for c in report.change_factors]
 
     if doc.limitations:
         story.append(Paragraph("LIMITATIONS", st["h"]))

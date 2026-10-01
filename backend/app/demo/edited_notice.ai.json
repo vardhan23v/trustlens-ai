@@ -1,0 +1,19 @@
+{
+ "model": "gemini-3.6-flash",
+ "recorded_at": "2026-10-01 14:32",
+ "visual": {
+  "media_type": "image",
+  "description": "A digital document containing an examination schedule notice from Northbridge Institute of Technology.",
+  "visible_text": "NORTHBRIDGE INSTITUTE OF TECHNOLOGY\nOffice of the Controller of Examinations\nRef: NIT/COE/2026/147\nDate: 22 September 2026\n\nNOTICE - Odd Semester Examination Schedule\n\nAll students of 3rd, 5th and 7th semester B.E. are informed that the odd semester examinations will commence on 10 November 2026. Hall tickets will be available on the student portal from 3 November 2026.\n\nExamination fee: Rs. 4,800 (regular) Last date for payment: 5 October 2026\nPayment mode: UPI to 9876543210@okaxis immediately to avoid late fee of Rs. 500\n\nStudents with attendance below 75% must contact their Head of Department before 15 October 2026.\n\nSd/-\nController of Examinations",
+  "indicators": [],
+  "authentic_cues": [
+   "Clean vector/digital text rendering typical of natively created PDF documents or word processor exports.",
+   "Uniform margins and consistent alignment throughout the document layout."
+  ],
+  "assessment": "likely_authentic",
+  "limitations": [
+   "Cannot verify authenticity of textual claims or dates within synthetic image analysis scope.",
+   "Digital documents created directly in software do not contain camera noise or physical paper artifacts."
+  ]
+ }
+}

@@ -5,6 +5,7 @@ The report is built from the final state by services/reporter.py. Score and verd
 """
 import asyncio
 import logging
+import re
 from typing import Optional
 
 from app.config import settings  # noqa: F401  (first: disables CrewAI telemetry)
@@ -17,6 +18,7 @@ from app.models.llm_outputs import (ClaimEvidence, Extracted, MediaAssessment, N
 from app.models.report import Ela, Signal
 from app.rules import text_rules
 from app.services import gemini_media, gemini_vision, image_forensics
+from app.services.media import probe
 from app.services.crew import crews
 
 log = logging.getLogger("trustlens.flow")
@@ -24,6 +26,11 @@ log = logging.getLogger("trustlens.flow")
 
 class FlowState(BaseModel):
     input_type: str = "text"  # image | text | claim | media
+    mode: str = ""  # product mode: news_claim | ai_generated ("" = legacy callers, tests, demos)
+    media_type: str = ""  # image | video | audio
+    stages: list[dict] = Field(default_factory=list)  # what actually ran, in order
+    media_meta: dict = Field(default_factory=dict)  # container facts from ffmpeg
+    sampled_frames: int = 0  # keyframes sent to Gemini instead of the whole video (0 = whole file sent)
     media: Optional[MediaAssessment] = None  # media: Gemini's examination of the video/audio file
     media_mime: str = ""
     news_image: Optional[NewsImageExtract] = None  # claim mode with an image: OCR + image-vs-caption check
@@ -54,48 +61,149 @@ def content_text(extracted_text: str) -> str:
     return "\n".join(l for l in extracted_text.splitlines() if not l.strip().startswith("VISUAL_NOTES:"))
 
 
+# Tool names in a container's encoder/software tag. A fact about the file, not proof of anything.
+_AI_TOOLS = re.compile(r"\b(sora|runway|kling|veo|pika|luma|heygen|synthesia|elevenlabs|d-id|deepfacelab|faceswap|"
+                       r"stable ?video|genmo|hailuo)\b", re.I)
+_EDIT_TOOLS = re.compile(r"\b(capcut|premiere|after effects|davinci|final cut|imovie|filmora|inshot|kinemaster|"
+                         r"audacity|adobe)\b", re.I)
+
+
+def _encoder_signal(meta: dict) -> Signal | None:
+    tag = " | ".join(str(meta[k]) for k in ("encoder", "software", "comment", "handler") if meta.get(k))
+    for rx, sev, what in ((_AI_TOOLS, "medium", "a generative AI tool"), (_EDIT_TOOLS, "low", "an editing tool")):
+        m = rx.search(tag)
+        if m:
+            return Signal(key="editing_software_exif", title="Container tag names a tool", severity=sev,
+                          category="image_forensics", sources=["RULE"],
+                          explanation=f"The file's metadata names {what}. Tags are easily changed or stripped, and "
+                                      "ordinary editing is not manipulation.", evidence=f"\"{m.group(0)}\" in: {tag[:120]}")
+    return None
+
+
+_VISUAL_WORDS = re.compile(r"\b(video|footage|presenter|anchor|mouth|lips?|face|frame|on[- ]screen|visual|picture|"
+                           r"camera|lighting)\b", re.I)
+
+
 class TrustLensFlow(Flow[FlowState]):
-    image_bytes: bytes = b""  # kept off the state: never serialised, never stored
+    image_bytes: bytes = b""  # the uploaded file. Kept off the state: never serialised, never stored
+    prepared: Optional[probe.Prepared] = None
+
+    def _stage(self, name: str, status: str, detail: str = "") -> None:
+        self.state.stages.append({"name": name, "status": status, "detail": detail})
 
     @start()
     def forensics(self):
         s = self.state
+        if s.media_mime:
+            try:
+                self.prepared = pr = probe.prepare(self.image_bytes, s.media_mime)
+                s.media_meta = pr.meta
+                self._stage("Container metadata (ffmpeg)", "done",
+                            ", ".join(f"{k}: {v}" for k, v in list(pr.meta.items())[:6]))
+                sig = _encoder_signal(pr.meta)
+                if sig:
+                    s.exif_signals.append(sig)
+                if s.media_mime.startswith("video/"):
+                    if pr.frames:
+                        s.sampled_frames = len(pr.frames)
+                        self._stage("Frame sampling", "done",
+                                    f"{len(pr.frames)} frames: uniform sampling plus {len(pr.scene_changes)} scene change(s)")
+                    else:
+                        self._stage("Frame sampling", "failed", "; ".join(pr.notes) or "No frames could be read")
+                    self._stage("Audio extraction", "done" if pr.audio else "skipped",
+                                "" if pr.audio else "The video has no usable audio track")
+            except Exception as e:  # preprocessing is optional: Gemini still gets the original file
+                log.warning("media preprocessing failed: %s", e)
+                self._stage("Container metadata (ffmpeg)", "unavailable", str(e)[:120])
+            return
         if not (s.input_type == "image" or (s.input_type == "claim" and s.image_format)):
             return
         s.exif_signals = image_forensics.exif(self.image_bytes)
         s.ela, s.ela_signal = image_forensics.ela(self.image_bytes, s.image_format)
+        self._stage("Metadata (EXIF)", "done", f"{len(s.exif_signals)} finding(s)")
+        self._stage("Error level analysis", "done" if s.ela.status == "ok" else "skipped",
+                    "" if s.ela.status == "ok" else "Applies to JPEG only")
 
     @listen(forensics)
     def vision_extract(self):
         s = self.state
-        if s.input_type == "media":
+        if s.media_mime:
+            how = (f"{s.sampled_frames} sampled frames + audio track" if s.sampled_frames else "original file")
             try:
-                s.media = gemini_media.assess(self.image_bytes, s.media_mime)
-                s.extracted = Extracted(classification=s.media.media_kind or "video",
-                                        extracted_text=s.media.transcript, claim="; ".join(s.media.spoken_claims[:5]))
+                s.media = m = gemini_media.assess(self.image_bytes, s.media_mime, self.prepared)
+                # Guard in code, not only in the prompt: an audio file has no picture and a silent video has no
+                # sound, so any observation about the missing track is a model invention and is discarded.
+                audio_only = s.media_mime.startswith("audio/")
+                silent = bool(s.media_meta) and "audio_codec" not in s.media_meta
+                kept = []
+                for o in m.observations:
+                    k = o.kind.strip().lower()
+                    visual = k.startswith("visual") or k in ("av_sync", "ai_generation") and not k.startswith("audio")
+                    if (audio_only and (visual or _VISUAL_WORDS.search(f"{o.title} {o.evidence}"))) or \
+                            (silent and (k.startswith("audio") or k == "av_sync")):
+                        continue
+                    kept.append(o)
+                dropped = len(m.observations) - len(kept)
+                m.observations = kept
+                if audio_only:
+                    m.visual_assessment = m.av_consistency = "not_applicable"
+                    m.on_screen_text = ""
+                    if _VISUAL_WORDS.search(m.description):
+                        m.description = ""
+                if dropped:
+                    self._stage("Consistency guard", "done",
+                                f"{dropped} observation(s) about a track this file does not have were discarded")
+                text = m.transcript + (f"\nON-SCREEN TEXT: {m.on_screen_text}" if m.on_screen_text.strip() else "")
+                s.extracted = Extracted(classification=s.media_type or m.media_kind or "video",
+                                        extracted_text=text, claim="; ".join(m.spoken_claims[:5]))
                 s.agents_used.append("media")
+                self._stage("Gemini multimodal examination", "done", how)
+                self._stage("Speech transcription (Gemini)", "done" if m.transcript.strip() else "skipped",
+                            m.language or ("" if m.transcript.strip() else "No speech was heard"))
+                if s.input_type == "claim":
+                    # what gets verified: the factual claims heard, else text shown on screen
+                    s.text = " ".join(m.spoken_claims[:4]).strip() or m.on_screen_text.strip()[:600]
+                    self._stage("Claim extraction", "done" if s.text else "skipped",
+                                f"{len(m.spoken_claims)} spoken claim(s)" if s.text else "No checkable factual claim was found")
             except Exception as e:  # never fabricate: the report will say Gemini could not examine the file
                 log.warning("media step failed: %s", e)
                 s.crew_error = f"media: {e}"
+                self._stage("Gemini multimodal examination", "failed", "Gemini could not examine the file")
             return
         if s.input_type == "claim" and s.image_format:
             s.caption = s.text
             try:
-                n = gemini_vision.extract_news_image(self.image_bytes, s.image_format, s.caption)
+                recorded = (s.fixture or {}).get("news_image")
+                n = (NewsImageExtract.model_validate(recorded) if recorded else
+                     gemini_vision.extract_news_image(self.image_bytes, s.image_format, s.caption))
                 s.news_image = n
                 s.agents_used.append("vision")
+                # the same call judged the image as media; _assess_image decides the state from these indicators
+                s.intent = "synthetic_detection"
+                s.visual = VisualAssessment(media_type="image", description=n.visual_description,
+                                            visible_text=n.extracted_text, indicators=n.indicators,
+                                            assessment=n.media_assessment)
+                self._stage("OCR and visual examination (Gemini)", "done", n.language)
+                self._stage("Claim extraction", "done" if (n.claim_in_image or s.caption) else "skipped",
+                            "" if (n.claim_in_image or s.caption) else "The image makes no checkable factual claim")
                 # what gets verified: the user's caption if given, else the claim the image itself makes
                 parts = [s.caption, n.claim_in_image if n.claim_in_image.lower() not in s.caption.lower() else ""]
                 s.text = " ".join(p for p in parts if p).strip() or n.extracted_text[:1500]
             except Exception as e:
                 log.warning("news image step failed: %s", e)
+                self._stage("OCR and visual examination (Gemini)", "failed", "Gemini could not read the image")
                 if not s.caption:
                     s.crew_error = f"vision: {e}"
             return
         if s.input_type != "image":
             return
         if s.fixture is not None:
-            s.extracted = Extracted.model_validate(s.fixture.get("extracted") or {})
+            if s.intent == "synthetic_detection":  # recorded Gemini visual examination
+                s.visual = VisualAssessment.model_validate(s.fixture.get("visual") or {})
+                s.extracted = Extracted(classification=s.visual.media_type or "other", extracted_text=s.visual.visible_text)
+                self._stage("Gemini visual examination", "done", "recorded result (demo)")
+            else:
+                s.extracted = Extracted.model_validate(s.fixture.get("extracted") or {})
             s.agents_used.append("vision")
             return
         try:
@@ -106,18 +214,23 @@ class TrustLensFlow(Flow[FlowState]):
             else:
                 s.extracted = gemini_vision.extract(self.image_bytes, s.image_format, s.intent)
             s.agents_used.append("vision")
+            self._stage("Gemini visual examination", "done")
         except Exception as e:  # continue with an empty extraction; never fabricate
             log.warning("vision step failed: %s", e)
             s.crew_error = f"vision: {e}"
+            self._stage("Gemini visual examination", "failed", "Gemini could not examine the image")
 
     @listen(vision_extract)
     def rules(self):
         s = self.state
-        if s.input_type == "image" and s.intent == "synthetic_detection":
+        if s.mode == "ai_generated" or (s.input_type == "image" and s.intent == "synthetic_detection"):
             return  # the question is about the media itself: message/URL rules do not apply
         text = (content_text(s.extracted.extracted_text) if s.input_type == "image"
-                else s.extracted.extracted_text if s.input_type == "media" else s.text)
+                else s.extracted.extracted_text if s.media_mime
+                else s.news_image.extracted_text if s.news_image else s.text)
         result = text_rules.run(text)
+        if s.mode:
+            self._stage("Deterministic content rules", "done", f"{len(result.signals)} finding(s) in the extracted text")
         s.rule_signals = text_rules.soften_for_document(result.signals) if s.input_type == "image" else result.signals
         s.all_urls_match_claimed = result.domain.all_urls_match_claimed
 
@@ -126,10 +239,17 @@ class TrustLensFlow(Flow[FlowState]):
         s = self.state
         findings = text_rules.summarize(s.exif_signals + ([s.ela_signal] if s.ela_signal else []) + s.rule_signals)
         if s.fixture is not None:
-            self._from_fixture()
+            if not (s.input_type == "image" and s.intent == "synthetic_detection"):
+                self._from_fixture()
+                if s.input_type == "claim" and s.mode:
+                    self._stage("Evidence retrieval and claim verification", "done",
+                                f"{len(s.tool_urls)} source link(s); recorded result (demo)")
             return
         if s.crew_error or (s.input_type == "claim" and not s.text.strip()):
-            return  # vision already failed, or the image carries no claim: nothing to verify
+            if s.input_type == "claim" and s.mode:
+                self._stage("Evidence retrieval and claim verification", "skipped",
+                            "Gemini could not read the file" if s.crew_error else "No checkable claim was extracted")
+            return  # vision already failed, or the file carries no claim: nothing to verify
         if s.input_type == "media" or (s.input_type == "image" and s.intent == "synthetic_detection"):
             return  # judged by the multimodal Gemini step; a text-only agent cannot see or hear the file
         try:
@@ -143,9 +263,15 @@ class TrustLensFlow(Flow[FlowState]):
                 s.claim_evidence, ledger = crews.run_claim_crew(s.text)
                 s.tool_urls, s.tool_errors = ledger.items, ledger.errors
                 s.agents_used.append("claim_verifier")
+                if s.mode:
+                    self._stage("Evidence retrieval and claim verification", "done",
+                                f"{len(s.tool_urls)} source link(s) returned by search tools"
+                                + ("; a search tool failed" if s.tool_errors else ""))
         except Exception as e:
             log.warning("crew step failed: %s", e)
             s.crew_error = f"crew: {e}"
+            if s.input_type == "claim" and s.mode:
+                self._stage("Evidence retrieval and claim verification", "failed", "The verification step failed")
 
     def _from_fixture(self):
         s, fx = self.state, self.state.fixture or {}
@@ -164,11 +290,11 @@ class TrustLensFlow(Flow[FlowState]):
 
 def run_sync(input_type: str, text: str = "", image_bytes: bytes = b"", image_format: str = "",
              fixture: dict | None = None, intent: str = "artifact_authenticity", media_mime: str = "",
-             article: dict | None = None) -> FlowState:
+             article: dict | None = None, mode: str = "", media_type: str = "") -> FlowState:
     flow = TrustLensFlow()
     flow.image_bytes = image_bytes
     inputs = {"input_type": input_type, "text": text, "image_format": image_format, "intent": intent,
-              "media_mime": media_mime}
+              "media_mime": media_mime, "mode": mode, "media_type": media_type}
     if article is not None:
         inputs["article"] = article
     if fixture is not None:
@@ -179,27 +305,34 @@ def run_sync(input_type: str, text: str = "", image_bytes: bytes = b"", image_fo
 
 async def run(input_type: str, text: str = "", image_bytes: bytes = b"", image_format: str = "",
               fixture: dict | None = None, intent: str = "artifact_authenticity", media_mime: str = "",
-              article: dict | None = None) -> FlowState:
+              article: dict | None = None, mode: str = "", media_type: str = "",
+              timeout: int | None = None) -> FlowState:
     """Run the Flow in a worker thread under the global timeout. On timeout the deterministic
     steps are re-run alone so a rule + forensics report is still returned."""
     loop = asyncio.get_running_loop()
+    limit = timeout or settings.FLOW_TIMEOUT_S
     try:
         return await asyncio.wait_for(
             loop.run_in_executor(None, run_sync, input_type, text, image_bytes, image_format, fixture, intent,
-                                 media_mime, article),
-            settings.FLOW_TIMEOUT_S,
+                                 media_mime, article, mode, media_type),
+            limit,
         )
     except asyncio.TimeoutError:
-        log.warning("flow timed out after %ss", settings.FLOW_TIMEOUT_S)
-        return deterministic_only(input_type, text, image_bytes, image_format, "timeout", intent)
+        log.warning("flow timed out after %ss", limit)
+        return deterministic_only(input_type, text, image_bytes, image_format, "timeout", intent,
+                                  mode=mode, media_type=media_type, media_mime=media_mime)
 
 
 def deterministic_only(input_type: str, text: str, image_bytes: bytes, image_format: str, reason: str,
-                       intent: str = "artifact_authenticity") -> FlowState:
-    s = FlowState(input_type=input_type, text=text, image_format=image_format, crew_error=reason, intent=intent)
-    if input_type == "media":
+                       intent: str = "artifact_authenticity", mode: str = "", media_type: str = "",
+                       media_mime: str = "") -> FlowState:
+    s = FlowState(input_type=input_type, text=text, image_format=image_format, crew_error=reason, intent=intent,
+                  mode=mode, media_type=media_type, media_mime=media_mime)
+    if mode:
+        s.stages.append({"name": "Analysis", "status": "failed", "detail": "Timed out; only deterministic checks are shown"})
+    if media_mime:
         return s
-    if input_type == "image":
+    if image_format:
         s.exif_signals = image_forensics.exif(image_bytes)
         s.ela, s.ela_signal = image_forensics.ela(image_bytes, image_format)
     else:

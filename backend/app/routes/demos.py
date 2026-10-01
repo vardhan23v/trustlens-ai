@@ -10,12 +10,14 @@ from app.services import flow, reporter
 
 router = APIRouter()
 
+# Media-only demos, one list per mode. `fixture` holds the recorded Gemini output for that mode.
 DEMOS = [
-    {"id": "genuine_notice", "label": "Genuine notice", "input_type": "image", "file": "demo_notice_genuine.jpg"},
-    {"id": "edited_notice", "label": "Edited notice", "input_type": "image", "file": "demo_notice_edited.jpg"},
-    {"id": "scam_sms", "label": "Scam SMS", "input_type": "text", "file": "demo_scam_sms.txt"},
-    {"id": "viral_claim", "label": "Viral claim", "input_type": "claim", "file": "demo_claim.txt"},
-    {"id": "injection", "label": "Injection", "input_type": "text", "file": "demo_injection.txt"},
+    {"id": "genuine_notice", "label": "Genuine notice", "input_type": "image", "mode": "ai_generated",
+     "file": "demo_notice_genuine.jpg", "fixture": "genuine_notice.ai.json"},
+    {"id": "edited_notice", "label": "Edited notice", "input_type": "image", "mode": "ai_generated",
+     "file": "demo_notice_edited.jpg", "fixture": "edited_notice.ai.json"},
+    {"id": "viral_post", "label": "Viral post", "input_type": "image", "mode": "news_claim",
+     "file": "demo_viral_post.jpg", "fixture": "viral_post.news.json"},
 ]
 _BY_ID = {d["id"]: d for d in DEMOS}
 
@@ -27,43 +29,33 @@ def get_demo(demo_id: str) -> dict:
     return demo
 
 
-def load_fixture(demo_id: str) -> dict | None:
-    path = DEMO_DIR / f"{demo_id}.crew.json"
+def load_fixture(demo: dict) -> dict | None:
+    path = DEMO_DIR / demo["fixture"]
     return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
 
 
 @router.get("/demos")
 def list_demos():
-    out = []
-    for d in DEMOS:
-        path = DEMO_DIR / d["file"]
-        if not path.exists():
-            continue
-        is_image = d["input_type"] == "image"
-        out.append({
-            "id": d["id"], "label": d["label"], "input_type": d["input_type"],
-            "text": None if is_image else path.read_text(encoding="utf-8").strip(),
-            "image_url": f"/api/demos/{d['id']}/image" if is_image else None,
-            "cached": (DEMO_DIR / f"{d['id']}.crew.json").exists(),
-        })
-    return out
+    return [{"id": d["id"], "label": d["label"], "input_type": d["input_type"], "mode": d["mode"], "text": None,
+             "image_url": f"/api/demos/{d['id']}/image", "cached": (DEMO_DIR / d["fixture"]).exists()}
+            for d in DEMOS if (DEMO_DIR / d["file"]).exists()]
 
 
 @router.get("/demos/{demo_id}/image")
 def demo_image(demo_id: str):
     demo = get_demo(demo_id)
-    if demo["input_type"] != "image":
-        raise HTTPException(404, "Not an image demo.")
     return FileResponse(DEMO_DIR / demo["file"], media_type="image/jpeg")
 
 
 @router.post("/analyze/demo/{demo_id}", response_model=TrustReport)
 async def analyze_demo(demo_id: str):
     demo = get_demo(demo_id)
-    path = DEMO_DIR / demo["file"]
-    fixture = load_fixture(demo_id)  # no fixture recorded yet → falls back to a live run
-    if demo["input_type"] == "image":
-        state = await flow.run("image", image_bytes=path.read_bytes(), image_format="JPEG", fixture=fixture)
+    data = (DEMO_DIR / demo["file"]).read_bytes()
+    fixture = load_fixture(demo)  # no fixture recorded yet → falls back to a live run
+    if demo["mode"] == "ai_generated":
+        state = await flow.run("image", image_bytes=data, image_format="JPEG", intent="synthetic_detection",
+                               fixture=fixture, mode="ai_generated", media_type="image")
     else:
-        state = await flow.run(demo["input_type"], text=path.read_text(encoding="utf-8").strip(), fixture=fixture)
+        state = await flow.run("claim", image_bytes=data, image_format="JPEG", fixture=fixture, mode="news_claim",
+                               media_type="image", timeout=120)
     return reporter.build(state)

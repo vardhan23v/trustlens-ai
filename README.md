@@ -13,10 +13,15 @@
 
 **Live:** https://trustlens-ai-production-5b04.up.railway.app
 
-**Gemini-powered Trust Checker.** Upload a screenshot or document image, or paste a suspicious message or a viral
-claim, and get an explainable **Trust Report**: every signal shows what was found, the quoted evidence, and whether it
-came from a deterministic **RULE** or from **GEMINI** reasoning. The score is computed in code and every deducted point
-is listed.
+**Gemini-powered Trust Checker with two modes.** Upload an **image, video or audio clip** and choose what you are
+verifying:
+
+- **NEWS / CLAIM** — is the claim supported by available evidence, and is the media authentic and in context?
+- **AI-GENERATED** — is this media likely synthetic or manipulated?
+
+Every finding shows what was found, the quoted evidence, and whether it came from a deterministic **RULE**, from
+**GEMINI**, from an external source, or from a specialist model (none is installed in this build, and reports say so).
+Claim, media authenticity and context are answered separately, each with its own confidence.
 
 > Trust should be backed by evidence, not appearance. *Don't just tell users what to trust. Show them why.*
 
@@ -28,17 +33,20 @@ Built at **ACM × MLH Hack Days 2026 — "Build with Gemini"**, Track 2: *Trust 
 
 | Where | What Gemini does | How |
 |---|---|---|
-| Vision extraction (image mode) | Reads the image: full text, sender, URLs, amounts, plus visual notes on odd regions | `google-genai`, structured output (`response_schema=Extracted`) |
-| **Extractor** agent | Classifies the content and extracts structured fields | CrewAI agent, `LLM(model="gemini/<GEMINI_MODEL>")`, `output_pydantic=Extracted` |
-| **Trust Signal Analyst** agent | Finds what rules cannot see: inconsistencies, tone mismatch, implausible authority, manipulation, prompt injection | CrewAI agent on Gemini, `output_pydantic=SignalSet` |
-| **Claim Verifier** agent | Extracts the checkable claim and gathers evidence with tools | CrewAI agent on Gemini + `FactCheckSearchTool` + `GroundedSearchTool` |
-| Grounded search | Finds published fact-checks with cited sources | Gemini `google_search` grounding (separate call, no schema) |
+| Image, AI-Generated mode | Looks for visible signs of AI generation or editing, with where/what evidence and uncertainty | `google-genai`, structured output (`VisualAssessment`) |
+| Image, News / Claim mode | Reads all text (OCR), extracts the claim, describes what is shown, and judges the image as media — one call | structured output (`NewsImageExtract`) |
+| Video / audio | Transcribes speech, lists spoken claims and on-screen text, and reports timestamped observations | structured output (`MediaAssessment`) on sampled keyframes + the audio track |
+| **Claim Verifier** agent | Decomposes the claim, searches, and reads each source headline's stance | CrewAI agent on Gemini + `NewsSearchTool`, `FactCheckSearchTool`, `GroundedSearchTool` |
 
-Model: `GEMINI_MODEL` (default `gemini-3.6-flash`; `gemini-2.5-flash` is no longer offered to new API keys). Orchestration: a CrewAI **Flow** (`TrustLensFlow`):
+Model: `GEMINI_MODEL` (default `gemini-3.6-flash`). Orchestration: a CrewAI **Flow** (`TrustLensFlow`):
 
 ```
-forensics (EXIF + ELA) → Gemini vision → deterministic rules → CrewAI crew (Gemini) → score + verdict in Python → Trust Report
+preprocess (EXIF + ELA, or ffmpeg metadata + keyframes + audio) → Gemini examination → deterministic rules
+→ claim verification crew (News / Claim) → per-dimension assessment in Python → report
 ```
+
+Gemini never decides a state on its own: its observations are evidence, and the claim verdict, media state, context
+state and confidence are computed in `services/reporter.py` and `services/fusion.py`.
 
 The browser never talks to Gemini: Frontend → FastAPI → CrewAI/Gemini. The API key lives only in `backend/.env`.
 
@@ -50,7 +58,7 @@ cd backend
 python3.12 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env            # then set GEMINI_API_KEY (and optionally FACTCHECK_API_KEY)
-python scripts/make_demos.py    # builds the demo images + texts
+python scripts/make_demos.py    # builds the demo images
 python scripts/make_demos.py --record   # records real Gemini outputs for the demo chips (needs the key)
 uvicorn app.main:app --reload --port 8000
 
@@ -60,25 +68,76 @@ npm install
 npm run dev                     # http://localhost:5173  (proxies /api → :8000)
 ```
 
-API: `GET /api/health` · `POST /api/analyze/image` (multipart `file`) · `POST /api/analyze/text` ·
-`POST /api/analyze/claim` (JSON `{"text"}`) · `GET /api/demos` · `POST /api/analyze/demo/{id}` · `POST /api/report/pdf` (JSON `{"report": <TrustReport>}` → PDF).
+### API
+
+`POST /api/analyze` — multipart form: `mode` = `news_claim` | `ai_generated`, `file` = image (JPG/PNG/WebP ≤ 10 MB),
+video (MP4/MOV/WebM ≤ 18 MB) or audio (MP3/WAV/M4A/OGG ≤ 18 MB). The file type is detected from its bytes. There is no
+text input.
+
+```bash
+curl -F mode=news_claim -F file=@clip.mp4 http://localhost:8000/api/analyze
+```
+
+Response (`TrustReport`, main fields):
+
+```
+mode, media_type, report_id
+overall_assessment {state, label, summary, confidence, basis}
+assessment_axes[]  {heading, state, label, summary, confidence, basis}   # one per question
+claims[] {text, dimension, status, supporting, contradicting}            # News / Claim
+evidence[] {source, url, title, published, stance, source_type, claim_index}
+timeline[] {date, source, title, stance, url}
+signals[] {key, title, severity, category, sources, explanation, evidence, uncertainty, penalty}
+evidence_signals[] {signal_id, category, modality, source_type, model, finding, direction, confidence,
+                    reliability, relevance, dimension, evidence, source_reference, limitations}
+stages[] {name, status, detail}            # what actually ran
+specialist_models[] {slot, task, status}   # MODEL_UNAVAILABLE in this build
+media_metadata {…}, change_factors[], caveats[], notes[]
+trust_score, risk_level, score_breakdown[], score_scope, verdict, recommendation, extracted, ela
+```
+
+Other endpoints: `GET /api/health` · `GET /api/demos` · `POST /api/analyze/demo/{id}` ·
+`GET /api/reports/{report_id}` (only with a database) · `POST /api/report/pdf` (JSON `{"report": <TrustReport>}` → PDF).
 
 Deploy: one container (`Dockerfile`) — FastAPI serves the built frontend; `railway.json` sets the health check.
 Deployed on Railway: https://trustlens-ai-production-5b04.up.railway.app
 
 ## Modes
 
-| Tab | Input | What is checked |
-|---|---|---|
-| Screenshot / Image | image + chosen intent | AI / synthetic detection **or** artifact authenticity; media and artifact answered separately |
-| Message / Text | pasted text | scam and phishing rules + Gemini agents |
-| Fake News / Claim | claim, article text, article URL, and/or an image | claim decomposed into parts, evidence from Google News RSS + fact-check search, source tiers, dated timeline; with an image: Claim / Media authenticity / Context consistency |
-| Video / Audio | MP4, MOV, WebM, MP3, WAV, M4A, OGG up to 18 MB | Gemini examines picture, sound and speech; timestamped observations; visual / audio / A-V consistency / spoken claims |
+| Mode | Image | Video | Audio |
+|---|---|---|---|
+| **NEWS / CLAIM** | EXIF + ELA → Gemini OCR, claim extraction, visual and context check → source search → claim / media / context | ffmpeg metadata → keyframes + audio track → Gemini transcript, spoken claims, on-screen text, observations → source search → claim / visual / audio / A-V / context | ffmpeg metadata → Gemini transcript, spoken claims, voice observations → source search → claim / audio / context |
+| **AI-GENERATED** | EXIF + ELA → Gemini visual examination → synthetic / manipulation assessment | ffmpeg metadata → keyframes + audio track → Gemini observations → visual / audio / A-V | ffmpeg metadata → Gemini voice observations → audio assessment |
 
-Not implemented, and reported as `MODEL_UNAVAILABLE` in every affected report: pretrained deepfake-video and
-voice-spoof detectors, ffmpeg frame/metadata extraction, embedding retrieval and NLI models. Source stance is read
-from headlines by Gemini; the verdict is computed in code from independent listed sources
-(`backend/app/rules/source_registry.json`). Missing evidence is never treated as evidence of falsehood.
+Result states — News / Claim: `SUPPORTED`, `CONTRADICTED`, `MISLEADING_CONTEXT`, `UNVERIFIED`, `INCONCLUSIVE`,
+`EVIDENCE_UNAVAILABLE`, `NOT_ASSESSED`. Media: `LIKELY_AUTHENTIC`, `LIKELY_SYNTHETIC`, `MANIPULATED`, `INCONCLUSIVE`.
+
+How the dimensions stay separate:
+
+- **Claim** is decided only from external sources: at least two independent listed sites, or one official source or
+  fact-checker, on one side. Copies from one site count once. Sources on both sides → `INCONCLUSIVE` with both listed.
+  A failed search → `EVIDENCE_UNAVAILABLE`, never "false". No claim in the file → `NOT_ASSESSED`, nothing is searched.
+- **Media authenticity** is decided only from forensic findings and Gemini's observations of the file.
+- **Context** combines the two: an apparently genuine file carrying a contradicted claim is `MISLEADING_CONTEXT`.
+- **Confidence** is separate from the state and depends on what evidence was available. With no specialist detector,
+  media confidence is `low` unless a measured forensic finding backs the state.
+- In AI-Generated mode, text rules are not run and spoken claims are not fact-checked. Gemini is told not to judge
+  truth from its own knowledge.
+- Observations about a track the file does not have (a "presenter" in an audio-only file) are discarded in code.
+
+Video: only up to 12 sampled frames (uniform + scene changes) and the audio track are sent to Gemini, so motion,
+flicker and lip-sync between frames are not analysed. The report says this.
+
+Specialist models (AI-image detector, video deepfake detector, anti-spoof audio model, OCR, ASR, embeddings, NLI) are
+**not installed**: see [docs/MODEL_SELECTION.md](docs/MODEL_SELECTION.md) for the candidates, the evidence and why each
+is deferred or rejected. Reports list each as `MODEL_UNAVAILABLE`; an unavailable model contributes nothing.
+
+## Storage
+
+Optional PostgreSQL (`DATABASE_URL`, set on Railway). It stores the finished report JSON only — never the uploaded
+file — so an identical file in the same mode returns the same report after a restart (news reports are re-run after
+24 h), and a report can be reopened with `GET /api/reports/{report_id}`. There is no endpoint that lists reports.
+Without a database the app works the same from a 30-minute in-memory cache.
 
 ## PDF Trust Report
 
@@ -105,6 +164,11 @@ Trust Report (already on screen) → POST /api/report/pdf → wording → Report
 
 ## Trust score — auditable by design
 
+The 0–100 number is a **risk indicator for the content**, shown beside the per-question assessments, not instead of
+them. In AI-Generated mode it counts forensic and visual/audio indicators only; in News / Claim mode it counts content
+risk signals and sources contradicting the claim. It does not measure whether a claim is true. This is relevance
+gating written as explicit rules, not a learned or calibrated fusion model.
+
 Start at 100. Each de-duplicated signal subtracts `PENALTIES[key] × severity` (high 1.0 · medium 0.6 · low 0.3).
 Deductions are capped per category (image forensics 25 · URL/domain 30 · message content 60 · claim evidence 40).
 Bands: **75–100 LOW · 45–74 MEDIUM · 0–44 HIGH**. Everything is in one file: `backend/app/rules/scoring.py`.
@@ -128,8 +192,8 @@ The same signal found by a rule *and* by Gemini counts once and shows both badge
   low, so a real bank SMS is not flagged HIGH for sounding urgent.
 - **Graceful degradation.** If Gemini is unavailable, the report still returns rule + forensics signals with a banner; nothing is fabricated.
 - **Repeatable.** Gemini runs at temperature 0, and an identical input is answered from a short-lived in-memory cache (30 min, RAM only), so the same image gives the same report.
-- **Links.** The backend fetches a user-supplied URL only in claim mode when you submit an article link, and only public http(s) pages (private and local addresses are refused, robots.txt respected).
-- **Privacy.** Nothing is written to disk; uploads are processed in memory and sent to Gemini for analysis only. The backend never fetches user-supplied URLs.
+- **Privacy.** Images are processed in memory. Video and audio are written to a private temporary folder for ffmpeg and deleted when the request ends. Files are sent to Gemini for analysis. Only the report JSON may be stored (see Storage).
+- **Not a truth detector.** TrustLens reports likelihood, evidence, uncertainty and limits. It does not claim guaranteed detection of deepfakes or AI-generated media.
 - Rules cover English + Hinglish patterns; other languages rely on Gemini.
 
 ## Track 2 mapping
@@ -142,13 +206,23 @@ The same signal found by a rule *and* by Gemini counts once and shows both badge
 
 ## Demos
 
-`Genuine notice` · `Edited notice` · `Scam SMS` · `Viral claim` · `Injection` — the chips run forensics and rules live and
-use pre-recorded Gemini outputs (`backend/app/demo/*.crew.json`, badge **CACHED DEMO**). Anything you upload or paste
-yourself is always analysed live. The demo notice uses a fictional institution.
+`Genuine notice` · `Edited notice` (AI-Generated mode) · `Viral post` (News / Claim mode). The chips run forensics live
+and use pre-recorded Gemini output (`backend/app/demo/*.ai.json`, `*.news.json`, badge **CACHED DEMO**). Anything you
+upload yourself is analysed live. The demo notice uses a fictional institution.
+
+## Tests
+
+```bash
+cd backend
+python tests/test_modes.py      # 25 checks: both modes x image/video/audio, failure handling (Gemini mocked)
+python tests/score_eval.py      # text rules, 50 labelled messages
+python tests/score_holdout.py   # text rules, 30 held-out messages
+python tests/test_report_pdf.py
+```
 
 ## Stack
 
 React + Vite + TypeScript + Tailwind v4 · FastAPI + Pydantic v2 · CrewAI (Flow + sequential Crew) · google-genai ·
-Pillow / piexif / NumPy · no database, no auth, stateless.
+Pillow / piexif / NumPy · ffmpeg (bundled via `imageio-ffmpeg`) · optional PostgreSQL (`psycopg`) · no auth.
 
 Planning docs: `architecture.md`, `design.md`, `memory.md`, `content_kit.md`.

@@ -4,6 +4,9 @@ export type Severity = 'high' | 'medium' | 'low'
 export type Category = 'image_forensics' | 'visual_analysis' | 'url_domain' | 'message_content' | 'claim_evidence'
 export type Source = 'RULE' | 'GEMINI'
 export type InputType = 'image' | 'text' | 'claim' | 'media'
+/** The two product modes. Sent as the `mode` form field of POST /api/analyze. */
+export type Mode = 'news_claim' | 'ai_generated'
+export type MediaType = 'image' | 'video' | 'audio'
 export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH'
 export type Verdict = 'VERIFIED_BY_SOURCE' | 'DEBUNKED_BY_SOURCE' | 'UNVERIFIED'
 export type AnalysisMode = 'live' | 'demo_cached'
@@ -20,11 +23,45 @@ export type AssessmentState =
   | 'SUPPORTED'
   | 'CONTRADICTED'
   | 'MISLEADING_CONTEXT'
+  | 'EVIDENCE_UNAVAILABLE'
 
 export interface Assessment {
   state: AssessmentState
   label: string
   summary: string
+  confidence: string // '' | low | medium | high
+  basis: string
+}
+
+export interface Stage {
+  name: string
+  status: 'done' | 'skipped' | 'failed' | 'unavailable'
+  detail: string
+}
+
+export interface SpecialistModel {
+  slot: string
+  task: string
+  candidate: string
+  status: string // AVAILABLE | MODEL_UNAVAILABLE
+  detail: string
+}
+
+export interface EvidenceSignal {
+  signal_id: string
+  category: string
+  modality: string
+  source_type: 'RULE' | 'MODEL' | 'GEMINI' | 'EXTERNAL_SOURCE'
+  model: string
+  finding: string
+  direction: 'SUPPORTS' | 'CONTRADICTS' | 'NEUTRAL' | 'UNKNOWN'
+  confidence: string
+  reliability: string
+  relevance: string
+  dimension: 'claim' | 'media_authenticity' | 'context' | 'content_risk'
+  evidence: string
+  source_reference: string
+  limitations: string[]
 }
 
 export interface AxisAssessment extends Assessment {
@@ -116,6 +153,15 @@ export interface CategoryBreakdown {
 export interface TrustReport {
   analysis_mode: AnalysisMode
   input_type: InputType
+  mode: Mode | null
+  report_id: string
+  media_type: MediaType | ''
+  stages: Stage[]
+  specialist_models: SpecialistModel[]
+  media_metadata: Record<string, string | number>
+  evidence_signals: EvidenceSignal[]
+  change_factors: string[]
+  score_scope: string
   assessment_axes: AxisAssessment[]
   claims: ClaimStatus[]
   timeline: TimelineEvent[]
@@ -152,6 +198,7 @@ export interface Health {
   gemini_model: string
   gemini_configured: boolean
   crewai_version: string
+  database?: string
 }
 
 // GET /api/demos
@@ -159,6 +206,7 @@ export interface Demo {
   id: string
   label: string
   input_type: InputType
+  mode: Mode
   text: string | null
   image_url: string | null
 }

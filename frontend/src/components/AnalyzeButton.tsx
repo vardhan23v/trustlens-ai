@@ -31,7 +31,7 @@ export default function AnalyzeButton({ busy, disabled, onClick }: Props) {
           </>
         )}
       </button>
-      <p className="text-xs text-muted">Not saved to disk. Sent to Gemini for analysis only.</p>
+      <p className="text-xs text-muted">Your file is sent to Gemini for analysis and is not kept. Only the report may be stored.</p>
     </div>
   )
 }

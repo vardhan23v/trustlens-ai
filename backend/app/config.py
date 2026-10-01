@@ -27,6 +27,8 @@ class Settings(BaseSettings):
     OPENROUTER_API_KEY: str = ""
     OPENROUTER_REPORT_MODEL: str = ""  # must be a free OpenRouter model id (ends with ":free")
     OPENROUTER_TIMEOUT_S: int = 25
+    # Optional PostgreSQL (Railway). Stores finished report JSON only; the app works without it.
+    DATABASE_URL: str = ""
 
 
 settings = Settings()

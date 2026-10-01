@@ -1,6 +1,4 @@
-import type { Demo, Health, InputType, Intent, TrustReport } from '../types/report'
-import mockReport from '../mocks/scam_sms.json'
-import { sleep } from '../utils/format'
+import type { Demo, Health, Mode, TrustReport } from '../types/report'
 
 // Same-origin only. The frontend never talks to Gemini directly.
 const API = '/api'
@@ -8,17 +6,9 @@ const API = '/api'
 export class ApiError extends Error {}
 
 export interface AnalyzeRequest {
-  mode: InputType
-  text?: string
+  mode: Mode
   file?: File | null
   demoId?: string | null
-  /** Image uploads: what to verify. */
-  intent?: Intent | null
-}
-
-/** Dev aid: `?mock=1` returns the bundled sample report instead of calling the API. */
-export function isMock(): boolean {
-  return new URLSearchParams(window.location.search).get('mock') === '1'
 }
 
 async function parse<T>(res: Response): Promise<T> {
@@ -65,40 +55,15 @@ export function getHealth(): Promise<Health> {
 }
 
 export async function getDemos(): Promise<Demo[]> {
-  if (isMock()) {
-    const m = mockReport as unknown as TrustReport
-    return [{ id: 'scam_sms', label: 'Scam SMS', input_type: 'text', text: m.extracted.extracted_text, image_url: null }]
-  }
   const demos = await request<Demo[]>('/demos')
   return Array.isArray(demos) ? demos : []
 }
 
-export function analyzeImage(file: File, intent: Intent): Promise<TrustReport> {
+export function analyzeFile(mode: Mode, file: File): Promise<TrustReport> {
   const form = new FormData()
+  form.append('mode', mode)
   form.append('file', file)
-  form.append('analysis_mode', intent)
-  return request<TrustReport>('/analyze/image', { method: 'POST', body: form })
-}
-
-export function analyzeMedia(file: File): Promise<TrustReport> {
-  const form = new FormData()
-  form.append('file', file)
-  return request<TrustReport>('/analyze/media', { method: 'POST', body: form })
-}
-
-export function analyzeText(text: string): Promise<TrustReport> {
-  return postJson<TrustReport>('/analyze/text', { text })
-}
-
-export function analyzeClaim(text: string): Promise<TrustReport> {
-  return postJson<TrustReport>('/analyze/claim', { text })
-}
-
-export function analyzeNews(text: string, file: File | null): Promise<TrustReport> {
-  const form = new FormData()
-  form.append('text', text)
-  if (file) form.append('file', file)
-  return request<TrustReport>('/analyze/news', { method: 'POST', body: form })
+  return request<TrustReport>('/analyze', { method: 'POST', body: form })
 }
 
 export function analyzeDemo(id: string): Promise<TrustReport> {
@@ -131,21 +96,7 @@ export async function downloadPdfReport(report: TrustReport): Promise<void> {
 }
 
 export async function analyze(req: AnalyzeRequest): Promise<TrustReport> {
-  if (isMock()) {
-    await sleep(2000)
-    return mockReport as unknown as TrustReport
-  }
   if (req.demoId) return analyzeDemo(req.demoId)
-  if (req.mode === 'image') {
-    if (!req.file) throw new ApiError('Choose an image to analyze.')
-    return analyzeImage(req.file, req.intent ?? 'artifact_authenticity')
-  }
-  if (req.mode === 'media') {
-    if (!req.file) throw new ApiError('Choose a video or audio file to analyze.')
-    return analyzeMedia(req.file)
-  }
-  const text = (req.text ?? '').trim()
-  if (req.mode === 'claim' && req.file) return analyzeNews(text, req.file)
-  if (!text) throw new ApiError('Enter some text to analyze.')
-  return req.mode === 'claim' ? analyzeClaim(text) : analyzeText(text)
+  if (!req.file) throw new ApiError('Choose an image, video or audio file to analyze.')
+  return analyzeFile(req.mode, req.file)
 }
