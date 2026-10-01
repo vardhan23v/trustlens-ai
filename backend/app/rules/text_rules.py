@@ -98,6 +98,27 @@ def _without_warnings(text: str) -> str:
     return _WARNING.sub(lambda m: " " * len(m.group(0)), text)
 
 
+# A credential word alone is not a request: an Aadhaar card says "Aadhaar number", a bank letter says
+# "password". It counts only when the same sentence asks the reader to hand it over.
+_REQUEST_VERB = re.compile(r"\b(share|send|enter|provide|submit|give|tell|type|reply|batao|bataye|bhejo|dalo|daalein)\b", re.I)
+
+
+def _credential_hit(text: str, patterns: list[str]) -> tuple[str, int] | None:
+    clean = _without_warnings(text)
+    first, count = None, 0
+    for p in patterns:
+        for m in re.finditer(p, clean, re.I):
+            a = max(clean.rfind(c, 0, m.start()) for c in ".!?\n") + 1
+            ends = [i for i in (clean.find(c, m.end()) for c in ".!?\n") if i != -1]
+            sentence = clean[a:min(ends) if ends else len(clean)]
+            if not _REQUEST_VERB.search(sentence):
+                continue
+            count += 1
+            if first is None or m.start() < first.start():
+                first = m
+    return (_quote(text, first), count) if first else None
+
+
 def soften_for_document(signals: list[Signal]) -> list[Signal]:
     """Image mode: genuine documents routinely mention fees, penalties or passwords. A keyword hit with
     no link or impersonation problem behind it is therefore medium, not high (Gemini can still raise it)."""
@@ -139,7 +160,7 @@ def run(text: str) -> RuleResult:
         return res
     fired: dict[str, Signal] = {}
     for key, sev, title, expl, patterns in RULES:
-        hit = _first_hit(_without_warnings(text) if key == "credential_request" else text, patterns)
+        hit = _credential_hit(text, patterns) if key == "credential_request" else _first_hit(text, patterns)
         if hit:
             quote, count = hit
             more = f" ({count} matching phrases found.)" if count > 1 else ""

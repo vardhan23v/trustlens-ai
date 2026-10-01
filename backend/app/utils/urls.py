@@ -8,15 +8,17 @@ import tldextract
 _extract = tldextract.TLDExtract(suffix_list_urls=())  # offline: bundled suffix snapshot only
 
 _TRAIL = ".,;:!?"
-_STOP = r"""[^\s<>"')\]]"""
+# URL characters are ASCII only: text in another script glued to a link ("uidai.gov.inలో") is not part of it.
+_STOP = r"""[^\s<>"')\]\u0080-\U0010ffff]"""
 _BARE_TLDS = (
     r"com|in|co\.in|net|org|gov\.in|ac\.in|edu|xyz|top|info|club|online|site|live|ly|gy|cc|me|io|app|link|"
     r"buzz|icu|tk|ml|ga|cf|gq|work|rest|cam|shop|store|vip|win"
 )
-HTTP_RE = re.compile(rf"https?://{_STOP}+", re.I)
-WWW_RE = re.compile(rf"\bwww\.{_STOP}+", re.I)
+# re.A: with plain re.I the non-ASCII exclusion would also swallow i/k/s (their Unicode case variants).
+HTTP_RE = re.compile(rf"https?://{_STOP}+", re.I | re.A)
+WWW_RE = re.compile(rf"\bwww\.{_STOP}+", re.I | re.A)
 BARE_RE = re.compile(
-    rf"\b[a-z0-9][a-z0-9-]{{1,62}}(?:\.[a-z0-9-]{{1,63}})*\.(?:{_BARE_TLDS})\b(?:/{_STOP}*)?", re.I
+    rf"\b[a-z0-9][a-z0-9-]{{1,62}}(?:\.[a-z0-9-]{{1,63}})*\.(?:{_BARE_TLDS})(?![a-z0-9-])(?:/{_STOP}*)?", re.I | re.A
 )
 IP_RE = re.compile(rf"\b\d{{1,3}}(?:\.\d{{1,3}}){{3}}(?::\d+)?/{_STOP}*")
 EMAIL_RE = re.compile(r"[a-z0-9._%+-]+@[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,}", re.I)
