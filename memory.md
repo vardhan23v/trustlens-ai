@@ -143,7 +143,19 @@ cd frontend && npm i && npm run dev     # http://localhost:5173
 - ELA thresholds need calibration against the two demo images; set so genuine < medium, edited ≥ high.
 
 ## Status
-Current stage: ______   Last verified: ______
+Current stage: 1–5 + 8 built, rule-only verified; waiting for GEMINI_API_KEY to verify crew/vision (stages 1,2,6,7) and record fixtures (4)   Last verified: 1 Oct 10:35
 
 ## Log
 <!-- append: [time] stage N — what changed, what was verified, open issues -->
+- [10:35] stages 1–3, 5, 8 (code) — backend Flow/rules/scoring/forensics/crew/tools/demo endpoints, frontend (all design.md components), README, Dockerfile, railway.json. Verified without a key: health 200, scam SMS → 25 HIGH (rule-only, `gemini_error` set), injection → 25 HIGH, edited notice ELA region on the two altered lines + EXIF signals, genuine notice → 100, PNG → `not_applicable_lossless`, non-image → 415, UI renders reports from the real API. crewai 1.15.23 (native Gemini provider), google-genai 2.26.0, Python 3.12.
+- Deviations from content_kit (all deliberate, small):
+  - ELA: single q90 re-save could not separate the demo images (text edges dominate; genuine and edited both ≈2.2×). Now a re-save sweep over q95…60 (JPEG-ghost style), hottest block vs median content block; thresholds high ≥4.0, medium ≥3.0 (genuine peaks 2.5, edited 4.7).
+  - Edited demo pipeline: genuine → forwarded copy q75 → two lines re-typed → editor export q98 + Photoshop EXIF (spec said save q75; a final low-quality save erases every ELA trace, so no honest ELA hit was possible).
+  - `urgency` pattern `last (chance|date|day)` → `last (chance|day)`: "Last date for payment" on a genuine notice is not urgency.
+  - `financial_request`: word boundaries on `rs`/`inr`/`fee`.
+  - WEAK_ALIASES (upi, aadhaar, meta, apple, axis, …) never establish a claimed organisation on their own.
+  - Deterministic "Prompt injection attempt" rule (key `action_pressure`, high) in addition to the Analyst's — the injection demo holds even rule-only.
+  - Claim Verifier `max_iter=4` (needs up to 3 tool calls + answer); other agents 2.
+  - Evidence URLs must appear in the per-run tool ledger or they are dropped; grounding redirect links are resolved to the real source URL.
+  - Risk floor: a high-severity signal is never shown as LOW (image-forensics cap of 25 alone would give 75 = LOW).
+  - Report contract additions: `score_breakdown`, `what_to_verify`, `inconsistencies`, `notes`, `ela.width/height`, signal `uncertainty`.
