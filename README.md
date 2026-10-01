@@ -1,5 +1,18 @@
 # TrustLens AI — See Beyond the Digital Surface
 
+[![Live demo](https://img.shields.io/badge/Live%20demo-Railway-0B0D0E?logo=railway&logoColor=white)](https://trustlens-ai-production-5b04.up.railway.app)
+![Powered by Gemini](https://img.shields.io/badge/Powered%20by-Gemini%203.6%20Flash-8E75B2?logo=googlegemini&logoColor=white)
+![CrewAI](https://img.shields.io/badge/Agents-CrewAI%201.15-FF5A50)
+![FastAPI](https://img.shields.io/badge/API-FastAPI-009688?logo=fastapi&logoColor=white)
+![React](https://img.shields.io/badge/UI-React%2019%20%2B%20Vite-61DAFB?logo=react&logoColor=black)
+![TypeScript](https://img.shields.io/badge/TypeScript-6-3178C6?logo=typescript&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-v4-06B6D4?logo=tailwindcss&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
+![Docker](https://img.shields.io/badge/Deploy-Docker-2496ED?logo=docker&logoColor=white)
+![Hackathon](https://img.shields.io/badge/ACM%20%C3%97%20MLH%20Hack%20Days%202026-Track%202%3A%20Trust-22D3EE)
+
+**Live:** https://trustlens-ai-production-5b04.up.railway.app
+
 **Gemini-powered Trust Checker.** Upload a screenshot or document image, or paste a suspicious message or a viral
 claim, and get an explainable **Trust Report**: every signal shows what was found, the quoted evidence, and whether it
 came from a deterministic **RULE** or from **GEMINI** reasoning. The score is computed in code and every deducted point
@@ -51,6 +64,7 @@ API: `GET /api/health` · `POST /api/analyze/image` (multipart `file`) · `POST 
 `POST /api/analyze/claim` (JSON `{"text"}`) · `GET /api/demos` · `POST /api/analyze/demo/{id}`.
 
 Deploy: one container (`Dockerfile`) — FastAPI serves the built frontend; `railway.json` sets the health check.
+Deployed on Railway: https://trustlens-ai-production-5b04.up.railway.app
 
 ## Trust score — auditable by design
 
