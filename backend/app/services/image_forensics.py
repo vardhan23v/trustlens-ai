@@ -20,6 +20,7 @@ ELA_QUALITIES = (95, 90, 85, 80, 75, 70, 65, 60)  # re-save sweep ("JPEG ghost" 
 DISPLAY_QUALITY = 90
 BLOCK = 16
 HIGH_RATIO, MED_RATIO = 4.0, 3.0
+COMPACT_BOX = 0.12  # hot region's bounding box as a fraction of the image
 MAX_ELA_PIXELS = 16_000_000
 
 
@@ -68,14 +69,15 @@ def exif(image_bytes: bytes) -> list[Signal]:
     if software:
         if EDITORS.search(software):
             out.append(Signal(
-                key="editing_software_exif", title="Editing software in metadata", severity="high",
+                key="editing_software_exif", title="Editing software in metadata", severity="medium",
                 category="image_forensics", sources=["RULE"],
-                explanation="The image metadata says it was last saved by an image editor. That shows it was "
-                            "processed, not what was changed.",
+                explanation="The image metadata says it was last saved by an image editor. Posters and notices "
+                            "are often legitimately made in such tools, so this only shows the file was "
+                            "processed, not that anything was altered.",
                 evidence=f"EXIF Software = \"{software}\""))
         elif not CAMERA_SW.search(software):
             out.append(Signal(
-                key="editing_software_exif", title="Non-camera software in metadata", severity="medium",
+                key="editing_software_exif", title="Non-camera software in metadata", severity="low",
                 category="image_forensics", sources=["RULE"],
                 explanation="The image metadata names software that is not a camera app, so the file was "
                             "processed after capture.",
@@ -123,18 +125,24 @@ def ela(image_bytes: bytes, fmt: str) -> tuple[Ela, Signal | None]:
             return a[: bh * BLOCK, : bw * BLOCK].reshape(bh, BLOCK, bw, BLOCK).mean(axis=(1, 3))
 
         best = None  # (ratio, quality, error map, block means)
-        if bh >= 4 and bw >= 4 and w * h <= MAX_ELA_PIXELS:
+        if fmt == "JPEG" and bh >= 4 and bw >= 4 and w * h <= MAX_ELA_PIXELS:
             grey = np.asarray(im.convert("L"), dtype=np.float32)
             content = grey[: bh * BLOCK, : bw * BLOCK].reshape(bh, BLOCK, bw, BLOCK).std(axis=(1, 3)) > 4
             if content.sum() >= 8:
+                candidates = []  # (typical error, ratio, quality, error map, block means)
                 for q in ELA_QUALITIES:
                     arr = _error_map(im, q)
                     blocks = blocks_of(arr)
-                    max_b = float(blocks.max())
-                    if max_b < 1.0:
-                        continue  # nothing above noise at this quality
+                    typical = float(np.median(blocks[content]))
                     # hottest block vs the typical block that has content (not vs. blank background)
-                    ratio = max_b / (float(np.median(blocks[content])) + 0.25)
+                    candidates.append((typical, float(blocks.max()) / (typical + 0.25), q, arr, blocks))
+                # The quality with the lowest typical error is the file's OWN last save quality. There the
+                # whole image barely changes and a few saturated blocks look like outliers, which flags
+                # unedited photos. A real paste shows up at an EARLIER quality, so skip the file's own.
+                own = min(candidates, key=lambda c: c[0])[2]
+                for typical, ratio, q, arr, blocks in candidates:
+                    if q == own or float(blocks.max()) < 1.0:
+                        continue
                     if best is None or ratio > best[0]:
                         best = (ratio, q, arr, blocks)
 
@@ -147,9 +155,10 @@ def ela(image_bytes: bytes, fmt: str) -> tuple[Ela, Signal | None]:
             x0, y0 = int(xs.min()) * BLOCK, int(ys.min()) * BLOCK
             rw, rh = (int(xs.max()) + 1) * BLOCK - x0, (int(ys.max()) + 1) * BLOCK - y0
             box_frac = (rw * rh) / float(w * h)
-            if ratio >= HIGH_RATIO and 0.002 <= area_frac <= 0.35 and box_frac <= 0.5:
+            compact = box_frac <= COMPACT_BOX  # a pasted region is one compact area, not scattered blocks
+            if ratio >= HIGH_RATIO and 0.002 <= area_frac <= 0.35 and compact:
                 severity = "high"
-            elif ratio >= MED_RATIO and area_frac <= 0.5 and box_frac <= 0.5:
+            elif (ratio >= HIGH_RATIO and box_frac <= 0.5) or (ratio >= MED_RATIO and compact):
                 severity = "medium"
 
         shown = best[2] if severity else _error_map(im, DISPLAY_QUALITY)

@@ -78,7 +78,7 @@ class TrustLensFlow(Flow[FlowState]):
         s = self.state
         text = content_text(s.extracted.extracted_text) if s.input_type == "image" else s.text
         result = text_rules.run(text)
-        s.rule_signals = result.signals
+        s.rule_signals = text_rules.soften_for_document(result.signals) if s.input_type == "image" else result.signals
         s.all_urls_match_claimed = result.domain.all_urls_match_claimed
 
     @listen(rules)

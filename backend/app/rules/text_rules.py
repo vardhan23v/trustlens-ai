@@ -87,6 +87,28 @@ def _injection_quote(text: str) -> str:
     return " ".join(text[a:a + 120].split()).strip("[]() ")
 
 
+# Safety advice ("never share your OTP", "we will never ask for your PIN") is the opposite of a request.
+_WARNING = re.compile(
+    r"[^.!?\n]*\b(never|do not|don't|dont|not to|will not|won't|does not|doesn't|kabhi nahi|na karein|mat)\b"
+    r"[^.!?\n]{0,60}\b(shar(e|es|ing)|asks?|asking|disclos(e|ing)|reveal|giv(e|ing)|tell|enter|batao|bataye)\b[^.!?\n]*"
+    r"|[^.!?\n]*\b(share|batao|bataye|bhejo)\s+(mat|na|nahi|nahin)\b[^.!?\n]*", re.I)
+
+
+def _without_warnings(text: str) -> str:
+    return _WARNING.sub(lambda m: " " * len(m.group(0)), text)
+
+
+def soften_for_document(signals: list[Signal]) -> list[Signal]:
+    """Image mode: genuine documents routinely mention fees, penalties or passwords. A keyword hit with
+    no link or impersonation problem behind it is therefore medium, not high (Gemini can still raise it)."""
+    if any(s.category == "url_domain" or s.key == "impersonation" for s in signals):
+        return signals
+    for s in signals:
+        if s.key in HIGH_RISK_KEYS and s.severity == "high":
+            s.severity = "medium"
+    return signals
+
+
 def _mk(key: str, severity: str, title: str, explanation: str, evidence: str) -> Signal:
     return Signal(key=key, title=title, severity=severity, category=category_of(key), sources=["RULE"],
                   explanation=explanation, evidence=evidence)
@@ -117,7 +139,7 @@ def run(text: str) -> RuleResult:
         return res
     fired: dict[str, Signal] = {}
     for key, sev, title, expl, patterns in RULES:
-        hit = _first_hit(text, patterns)
+        hit = _first_hit(_without_warnings(text) if key == "credential_request" else text, patterns)
         if hit:
             quote, count = hit
             more = f" ({count} matching phrases found.)" if count > 1 else ""
