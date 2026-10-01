@@ -6,7 +6,7 @@ export type Source = 'RULE' | 'GEMINI'
 export type InputType = 'image' | 'text' | 'claim' | 'media'
 /** The two product modes. Sent as the `mode` form field of POST /api/analyze. */
 export type Mode = 'news_claim' | 'ai_generated'
-export type MediaType = 'image' | 'video' | 'audio'
+export type MediaType = 'image' | 'video' | 'audio' | 'text'
 export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH'
 export type Verdict = 'VERIFIED_BY_SOURCE' | 'DEBUNKED_BY_SOURCE' | 'UNVERIFIED'
 export type AnalysisMode = 'live' | 'demo_cached'

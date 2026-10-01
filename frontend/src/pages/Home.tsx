@@ -17,6 +17,7 @@ type Phase = 'idle' | 'analyzing' | 'result' | 'error'
 interface RunRequest {
   mode: Mode
   file?: File | null
+  text?: string
   demoId?: string | null
   mediaType: MediaType
   /** Image shown as "original" next to the compression map (image input only). */
@@ -28,6 +29,8 @@ export default function Home() {
   const [mode, setMode] = useState<Mode | null>(null)
   const [file, setFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  // Text is an alternative to a file: entering one clears the other.
+  const [text, setText] = useState('')
   // The demo currently loaded; cleared as soon as the user picks a file or changes mode.
   const [demoId, setDemoId] = useState<string | null>(null)
 
@@ -91,11 +94,21 @@ export default function Home() {
   const onFile = (f: File | null) => {
     setFile(f)
     setDemoId(null)
+    if (f) setText('')
     if (f) {
       const url = URL.createObjectURL(f)
       objectUrls.current.push(url)
       setPreviewUrl(url)
     } else {
+      setPreviewUrl(null)
+    }
+  }
+
+  const onText = (value: string) => {
+    setText(value)
+    if (value && (file || demoId)) {
+      setFile(null)
+      setDemoId(null)
       setPreviewUrl(null)
     }
   }
@@ -113,15 +126,21 @@ export default function Home() {
     setMode(d.mode)
     setDemoId(d.id)
     setFile(null)
+    setText('')
     setPreviewUrl(d.image_url)
     // Auto-run: one click shows the full report.
     void run({ mode: d.mode, demoId: d.id, mediaType: 'image', imageUrl: d.image_url })
   }
 
-  const canSubmit = !!mode && (!!file || !!demoId)
+  const hasText = text.trim().length > 0
+  const canSubmit = !!mode && (!!file || !!demoId || hasText)
 
   const onSubmit = () => {
     if (busy || !mode || !canSubmit) return
+    if (!file && !demoId) {
+      void run({ mode, text, mediaType: 'text' })
+      return
+    }
     const mediaType = file ? (mediaTypeOf(file) ?? 'image') : 'image'
     void run({ mode, file, demoId, mediaType, imageUrl: previewUrl })
   }
@@ -146,6 +165,8 @@ export default function Home() {
             file={file}
             previewUrl={previewUrl}
             onFile={onFile}
+            text={text}
+            onText={onText}
             demos={demos}
             activeDemoId={demoId}
             onPickDemo={onPickDemo}
@@ -162,7 +183,7 @@ export default function Home() {
 
         {phase === 'idle' && (
           <p className="px-1 text-sm text-muted">
-            Choose a mode, then upload an image, video or audio clip. TrustLens shows the evidence behind every
+            Choose a mode, then upload an image, video or audio clip, or paste text. TrustLens shows the evidence behind every
             assessment — what was found, what is missing, and how certain it is.
           </p>
         )}

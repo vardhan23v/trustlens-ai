@@ -1,4 +1,4 @@
-"""The one analysis endpoint: a mode and a media file. There is no text input."""
+"""The one analysis endpoint: a mode plus a media file or pasted text."""
 from typing import Literal
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
@@ -16,13 +16,54 @@ UNSUPPORTED = ("Unsupported file. Upload an image (JPG, PNG, WebP), a video (MP4
                "(MP3, WAV, M4A, OGG).")
 
 
+MAX_TEXT_CHARS = 8000
+
+
+async def _finish(k: str, state) -> TrustReport:
+    report = reporter.build(state)
+    report.report_id = store.new_id()
+    result_cache.put(k, report)
+    await run_in_threadpool(store.save, k, report)
+    return report
+
+
+async def _cached(k: str) -> TrustReport | None:
+    cached = result_cache.get(k)
+    if cached is None:
+        cached = await run_in_threadpool(store.by_key, k)  # survives restarts when a database is configured
+        if cached:
+            result_cache.put(k, cached)
+    return cached
+
+
+async def _analyze_text(mode: str, text: str) -> TrustReport:
+    if len(text) > MAX_TEXT_CHARS:
+        raise HTTPException(413, f"Text is too long (max {MAX_TEXT_CHARS} characters).")
+    k = result_cache.key("analyze", text.encode(), f"{mode}:text")
+    cached = await _cached(k)
+    if cached:
+        return cached
+    if mode == "ai_generated":
+        state = await flow.run("text", text=text, mode=mode, media_type="text")
+    else:
+        state = await flow.run("claim", text=text, mode=mode, media_type="text", timeout=120)
+    return await _finish(k, state)
+
+
 @router.post("/analyze", response_model=TrustReport)
 async def analyze(
-    file: UploadFile = File(...),
     mode: Literal["news_claim", "ai_generated"] = Form(...),
+    file: UploadFile | None = File(None),
+    text: str = Form(""),
 ):
-    """NEWS / CLAIM: extract the claim from the file, check it against sources, and assess the media and its
-    context separately. AI-GENERATED: assess whether the media itself is synthetic or manipulated."""
+    """NEWS / CLAIM: extract the claim, check it against sources, and assess the media and its context
+    separately. AI-GENERATED: assess whether the media (or text) itself is synthetic or manipulated.
+    Send either a file (image, video, audio) or text."""
+    text = text.strip()
+    if file is None or not file.filename:
+        if not text:
+            raise HTTPException(422, "Upload a file or paste some text to analyse.")
+        return await _analyze_text(mode, text)
     limit = max(settings.MAX_UPLOAD_MB, MAX_MEDIA_MB) * 1024 * 1024
     data = await file.read(limit + 1)
     # The type comes from the file's own bytes; the name and browser-supplied type are not trusted.
@@ -37,11 +78,7 @@ async def analyze(
     media_type = "image" if is_image else mime.split("/")[0]
 
     k = result_cache.key("analyze", data, f"{mode}:{media_type}")
-    cached = result_cache.get(k)
-    if cached is None:
-        cached = await run_in_threadpool(store.by_key, k)  # survives restarts when a database is configured
-        if cached:
-            result_cache.put(k, cached)
+    cached = await _cached(k)
     if cached:
         return cached  # identical file + mode: identical report
     if is_image and mode == "ai_generated":
@@ -56,11 +93,7 @@ async def analyze(
     else:
         state = await flow.run("claim", image_bytes=data, media_mime=mime, mode=mode, media_type=media_type,
                                timeout=170)
-    report = reporter.build(state)
-    report.report_id = store.new_id()
-    result_cache.put(k, report)
-    await run_in_threadpool(store.save, k, report)
-    return report
+    return await _finish(k, state)
 
 
 @router.get("/reports/{report_id}", response_model=TrustReport)

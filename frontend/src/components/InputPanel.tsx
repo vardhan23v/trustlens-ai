@@ -13,10 +13,25 @@ interface Props {
   file: File | null
   previewUrl: string | null
   onFile: (file: File | null) => void
+  text: string
+  onText: (value: string) => void
   demos: Demo[]
   activeDemoId: string | null
   onPickDemo: (demo: Demo) => void
   health: Health | null
+}
+
+const TEXT_COPY: Record<Mode, { label: string; placeholder: string; hint: string }> = {
+  news_claim: {
+    label: 'Claim, headline or message to verify',
+    placeholder: 'Paste a headline, viral claim or forwarded message…',
+    hint: 'The claim is checked against news and fact-check sources.',
+  },
+  ai_generated: {
+    label: 'Text to check for AI writing',
+    placeholder: 'Paste a paragraph or more to check for signs of AI-generated writing…',
+    hint: 'Needs at least about 40 words. AI-text detection is unreliable; the result is a likelihood, not proof.',
+  },
 }
 
 export default function InputPanel(props: Props) {
@@ -46,6 +61,30 @@ export default function InputPanel(props: Props) {
           </div>
           <p className="text-sm text-text">{MODE_COPY[mode].upload}</p>
           <UploadZone file={props.file} previewUrl={props.previewUrl} onFile={props.onFile} disabled={busy} />
+          <div>
+            <div className="mb-2 flex items-center gap-3 text-[11px] font-medium uppercase tracking-wider text-muted">
+              <span className="h-px flex-1 bg-border" />
+              or paste text
+              <span className="h-px flex-1 bg-border" />
+            </div>
+            <label htmlFor="text-input" className="sr-only">
+              {TEXT_COPY[mode].label}
+            </label>
+            <textarea
+              id="text-input"
+              value={props.text}
+              onChange={(e) => props.onText(e.target.value)}
+              disabled={busy}
+              rows={5}
+              maxLength={8000}
+              placeholder={TEXT_COPY[mode].placeholder}
+              className="w-full resize-y rounded-xl border border-border bg-bg/60 p-3 text-sm text-text placeholder:text-muted/70 focus:border-accent focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+            />
+            <p className="mt-1 flex justify-between gap-3 text-xs text-muted">
+              <span>{TEXT_COPY[mode].hint}</span>
+              <span className="shrink-0 font-mono">{props.text.length} / 8000</span>
+            </p>
+          </div>
           {demos.length > 0 && (
             <DemoChips demos={demos} activeId={props.activeDemoId} onPick={props.onPickDemo} disabled={busy} />
           )}

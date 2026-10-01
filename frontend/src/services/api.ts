@@ -8,6 +8,7 @@ export class ApiError extends Error {}
 export interface AnalyzeRequest {
   mode: Mode
   file?: File | null
+  text?: string
   demoId?: string | null
 }
 
@@ -59,10 +60,11 @@ export async function getDemos(): Promise<Demo[]> {
   return Array.isArray(demos) ? demos : []
 }
 
-export function analyzeFile(mode: Mode, file: File): Promise<TrustReport> {
+export function analyzeInput(mode: Mode, file: File | null, text: string): Promise<TrustReport> {
   const form = new FormData()
   form.append('mode', mode)
-  form.append('file', file)
+  if (file) form.append('file', file)
+  else form.append('text', text)
   return request<TrustReport>('/analyze', { method: 'POST', body: form })
 }
 
@@ -97,6 +99,7 @@ export async function downloadPdfReport(report: TrustReport): Promise<void> {
 
 export async function analyze(req: AnalyzeRequest): Promise<TrustReport> {
   if (req.demoId) return analyzeDemo(req.demoId)
-  if (!req.file) throw new ApiError('Choose an image, video or audio file to analyze.')
-  return analyzeFile(req.mode, req.file)
+  const text = (req.text ?? '').trim()
+  if (!req.file && !text) throw new ApiError('Upload a file or paste some text to analyze.')
+  return analyzeInput(req.mode, req.file ?? null, text)
 }

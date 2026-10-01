@@ -9,6 +9,11 @@ interface Props {
 /** What this pipeline does for the chosen mode and file kind. It is a description, not a progress
  *  meter: the server reports which stages actually ran, and the report lists them afterwards. */
 function plan(mode: Mode, kind: MediaType): string[] {
+  if (kind === 'text') {
+    return mode === 'ai_generated'
+      ? ['Reading the writing for AI-generation traits', 'Evidence reconciliation']
+      : ['Content rule checks', 'Claim extraction', 'Searching news and fact-check sources', 'Claim assessment']
+  }
   const pre =
     kind === 'image'
       ? ['Metadata and compression checks']
@@ -36,7 +41,7 @@ export default function StageProgress({ mode, mediaType }: Props) {
         </p>
       </div>
       <p className="mt-2 text-xs text-muted">
-        {mediaType === 'image' ? 'This usually takes 10–40 seconds.' : 'Video and audio can take up to two minutes.'} The
+        {mediaType === 'image' || mediaType === 'text' ? 'This usually takes 10–40 seconds.' : 'Video and audio can take up to two minutes.'} The
         report lists which of these stages actually ran.
       </p>
       <ol className="mt-4 grid gap-2 sm:grid-cols-2">

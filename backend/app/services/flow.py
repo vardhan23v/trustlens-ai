@@ -17,7 +17,7 @@ from app.models.llm_outputs import (ClaimEvidence, Extracted, MediaAssessment, N
                                     VisualAssessment)
 from app.models.report import Ela, Signal
 from app.rules import text_rules
-from app.services import gemini_media, gemini_vision, image_forensics
+from app.services import gemini_media, gemini_text, gemini_vision, image_forensics
 from app.services.media import probe
 from app.services.crew import crews
 
@@ -195,6 +195,17 @@ class TrustLensFlow(Flow[FlowState]):
                 if not s.caption:
                     s.crew_error = f"vision: {e}"
             return
+        if s.input_type == "text" and s.mode == "ai_generated":
+            s.extracted = Extracted(classification="text", extracted_text=s.text)
+            try:
+                s.visual = gemini_text.assess(s.text)
+                s.agents_used.append("text_examiner")
+                self._stage("Gemini examination of the writing", "done", f"{len(s.text.split())} words")
+            except Exception as e:
+                log.warning("text step failed: %s", e)
+                s.crew_error = f"text: {e}"
+                self._stage("Gemini examination of the writing", "failed", "Gemini could not examine the text")
+            return
         if s.input_type != "image":
             return
         if s.fixture is not None:
@@ -250,7 +261,8 @@ class TrustLensFlow(Flow[FlowState]):
                 self._stage("Evidence retrieval and claim verification", "skipped",
                             "Gemini could not read the file" if s.crew_error else "No checkable claim was extracted")
             return  # vision already failed, or the file carries no claim: nothing to verify
-        if s.input_type == "media" or (s.input_type == "image" and s.intent == "synthetic_detection"):
+        if s.input_type == "media" or (s.input_type == "image" and s.intent == "synthetic_detection") or (
+                s.input_type == "text" and s.mode == "ai_generated"):
             return  # judged by the multimodal Gemini step; a text-only agent cannot see or hear the file
         try:
             if s.input_type == "image":

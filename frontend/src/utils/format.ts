@@ -18,6 +18,7 @@ const AGENT_LABEL: Record<string, string> = {
   claim_verifier: 'Claim Verifier',
   vision: 'Gemini Vision',
   media: 'Gemini Media Examination',
+  text_examiner: 'Gemini Text Examination',
 }
 
 export function normSeverity(s: string): Severity {

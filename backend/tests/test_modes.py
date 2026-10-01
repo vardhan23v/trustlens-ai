@@ -189,6 +189,34 @@ check("news video: search crash keeps the media examination",
       axis(r, "Claim assessment")["state"] == "EVIDENCE_UNAVAILABLE"
       and axis(r, "Visual authenticity")["state"] == "LIKELY_AUTHENTIC" and r["gemini_error"])
 
+# ---------- text input ----------
+def post_text(mode, text):
+    result_cache._items.clear()
+    return c.post("/api/analyze", data={"mode": mode, "text": text})
+
+
+ESSAY = ("In today's fast-paced world, it is important to note that technology plays a pivotal role. " * 3
+         + "Moreover, it is worth mentioning that there are several key factors to consider. " * 3)
+ai_text = VisualAssessment(media_type="text", assessment="likely_synthetic", indicators=[
+    VisualIndicator(kind="ai_generation", title="Stock transitions", severity="medium", evidence="it is important to note that"),
+    VisualIndicator(kind="ai_generation", title="Generic statements", severity="medium", evidence="several key factors to consider"),
+    VisualIndicator(kind="ai_generation", title="Invented quote", severity="high", evidence="this phrase is not in the text")])
+with mock.patch(P + "gemini_text.assess", return_value=ai_text), \
+        mock.patch(P + "crews.run_claim_crew", side_effect=AssertionError("no claim search in AI mode")):
+    r = post_text("ai_generated", ESSAY).json()
+check("ai text: quoted indicators -> LIKELY_SYNTHETIC, low confidence, no claim search",
+      r["media_type"] == "text" and r["overall_assessment"]["state"] == "LIKELY_SYNTHETIC"
+      and r["assessment_axes"][0]["confidence"] == "low" and r["verdict"] is None)
+with mock.patch(P + "gemini_text.assess", return_value=ai_text):
+    r = post_text("ai_generated", "Too short to judge.").json()
+check("ai text: short text is INCONCLUSIVE whatever the model says", r["overall_assessment"]["state"] == "INCONCLUSIVE")
+with mock.patch(P + "crews.run_claim_crew", side_effect=crew(REFUTE)):
+    r = post_text("news_claim", CLAIM).json()
+check("news text: claim checked, no media axes",
+      axis(r, "Claim assessment")["state"] == "CONTRADICTED" and len(r["assessment_axes"]) == 1 and r["media_type"] == "text")
+check("neither file nor text -> 422", c.post("/api/analyze", data={"mode": "news_claim"}).status_code == 422)
+check("text too long -> 413", post_text("news_claim", "x" * 8001).status_code == 413)
+
 # ---------- failures ----------
 with mock.patch(P + "gemini_media.assess", side_effect=GeminiUnavailable("429 quota")):
     r = post("ai_generated", VID, "v.mp4").json()

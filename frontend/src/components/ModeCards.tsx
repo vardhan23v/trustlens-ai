@@ -15,17 +15,17 @@ export const MODE_COPY: Record<
   news_claim: {
     title: 'NEWS / CLAIM',
     question: 'Is the claim supported, and is the media authentic and in context?',
-    description: 'Verify claims from news screenshots, videos, and audio.',
-    examples: ['News screenshot', 'Viral forward', 'News clip', 'Voice note', 'Speech recording'],
-    upload: 'Upload a screenshot, video, or audio clip containing the claim you want to verify.',
+    description: 'Verify claims from news screenshots, videos, audio, and text.',
+    examples: ['News screenshot', 'Viral forward', 'News clip', 'Voice note', 'Pasted claim or message'],
+    upload: 'Upload a screenshot, video, or audio clip containing the claim you want to verify — or paste the text.',
     report: 'News / Claim Verification Report',
   },
   ai_generated: {
     title: 'AI-GENERATED',
     question: 'Is this media likely synthetic or manipulated?',
-    description: 'Check whether images, videos, or audio show signs of synthetic generation or manipulation.',
-    examples: ['AI-generated image', 'Edited photo', 'Deepfake video', 'Cloned voice'],
-    upload: 'Upload an image, video, or audio clip to analyze for synthetic-media indicators.',
+    description: 'Check whether images, videos, audio, or text show signs of synthetic generation or manipulation.',
+    examples: ['AI-generated image', 'Edited photo', 'Deepfake video', 'Cloned voice', 'AI-written text'],
+    upload: 'Upload an image, video, or audio clip to analyze for synthetic-media indicators — or paste text to check for AI writing.',
     report: 'AI-Generated Media Analysis',
   },
 }

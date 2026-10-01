@@ -13,7 +13,7 @@
 
 **Live:** https://trustlens-ai-production-5b04.up.railway.app
 
-**Gemini-powered Trust Checker with two modes.** Upload an **image, video or audio clip** and choose what you are
+**Gemini-powered Trust Checker with two modes.** Upload an **image, video or audio clip, or paste text**, and choose what you are
 verifying:
 
 - **NEWS / CLAIM** — is the claim supported by available evidence, and is the media authentic and in context?
@@ -71,8 +71,8 @@ npm run dev                     # http://localhost:5173  (proxies /api → :8000
 ### API
 
 `POST /api/analyze` — multipart form: `mode` = `news_claim` | `ai_generated`, `file` = image (JPG/PNG/WebP ≤ 10 MB),
-video (MP4/MOV/WebM ≤ 18 MB) or audio (MP3/WAV/M4A/OGG ≤ 18 MB). The file type is detected from its bytes. There is no
-text input.
+video (MP4/MOV/WebM ≤ 18 MB) or audio (MP3/WAV/M4A/OGG ≤ 18 MB), **or** `text` (≤ 8000 characters) instead of a file.
+The file type is detected from its bytes.
 
 ```bash
 curl -F mode=news_claim -F file=@clip.mp4 http://localhost:8000/api/analyze
@@ -131,6 +131,11 @@ flicker and lip-sync between frames are not analysed. The report says this.
 Specialist models (AI-image detector, video deepfake detector, anti-spoof audio model, OCR, ASR, embeddings, NLI) are
 **not installed**: see [docs/MODEL_SELECTION.md](docs/MODEL_SELECTION.md) for the candidates, the evidence and why each
 is deferred or rejected. Reports list each as `MODEL_UNAVAILABLE`; an unavailable model contributes nothing.
+
+Text input: in News / Claim the pasted claim goes through the same source verification (claim assessment only, no
+media axes). In AI-Generated mode Gemini lists quoted traits of AI-style writing; the state is decided in code, needs
+about 40 words, requires at least two quoted traits that really occur in the text, and always carries low confidence,
+because AI-text detection is unreliable. No AI-text detector model is installed.
 
 ## Storage
 

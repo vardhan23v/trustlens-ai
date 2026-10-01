@@ -93,12 +93,20 @@ def _media_confidence(axis: Assessment, signals: list[Signal], detectors: bool, 
         return "medium", "A measured forensic finding supports this, alongside Gemini's observations."
     if detectors:
         return "medium", "A specialist detector and Gemini's observations were both available."
+    if axis.heading == "AI-authorship assessment":
+        return "low", "Rests on Gemini's reading of the style only. No AI-text detector ran, and such detection is unreliable."
     return "low", "Rests on Gemini's observations only: no specialist detector ran, and visual inspection is unreliable."
 
 
 def _change_factors(report: TrustReport, state, claim_axis: AxisAssessment | None) -> list[str]:
     out: list[str] = []
     kind = report.media_type
+    if kind == "text" and report.mode == "ai_generated":
+        out += ["A longer sample by the same author: short text carries little signal",
+                "Drafts, edit history or the document's original source",
+                "Earlier writing by the same person, to compare style"]
+    if kind == "text" and report.mode == "news_claim":
+        out.append("The original post, article or broadcast the text came from, with its date")
     if kind == "image":
         if report.ela.status != "ok":
             out.append("The original JPEG instead of a screenshot or PNG copy: compression analysis could not run on this file")

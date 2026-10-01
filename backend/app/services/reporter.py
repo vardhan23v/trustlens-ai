@@ -365,6 +365,38 @@ def _assess_media(state) -> list[AxisAssessment]:
     return axes
 
 
+TEXT_RECOMMENDATION = {
+    "LIKELY_SYNTHETIC": "Several traits of AI-generated writing were found. Treat the authorship as uncertain and "
+                        "ask for the source or drafts if it matters; do not treat this as proof.",
+    "LIKELY_AUTHENTIC": "No clear traits of AI-generated writing were found. That does not prove a person wrote it.",
+    "INCONCLUSIVE": "The text does not give enough evidence either way. Authorship cannot be judged from this sample.",
+}
+MIN_WORDS = 40  # below this a text carries too little signal to say anything
+
+
+def _assess_text(state) -> AxisAssessment:
+    """AI-authorship of pasted text. Decided here from Gemini's quoted indicators; always low confidence."""
+    v, heading = state.visual, "AI-authorship assessment"
+    words = len(state.text.split())
+    if v is None:
+        return AxisAssessment(heading=heading, state="INCONCLUSIVE", label="Inconclusive",
+                              summary="Gemini could not examine the text, so nothing was assessed.")
+    if words < MIN_WORDS:
+        return AxisAssessment(heading=heading, state="INCONCLUSIVE", label="Too short to assess",
+                              summary=f"The text has {words} words. Short text carries too little signal to judge authorship.")
+    quoted = [i for i in v.indicators if i.evidence.strip() and i.evidence.strip().strip('"\'')[:40].lower() in state.text.lower()]
+    strong = [i for i in quoted if i.severity.lower() != "low"]
+    claimed = v.assessment.strip().lower()
+    if claimed == "likely_synthetic" and len(strong) >= 2:
+        return AxisAssessment(heading=heading, state="LIKELY_SYNTHETIC", label="Likely AI-generated text",
+                              summary=f"{len(strong)} quoted traits of AI-generated writing were found. This is likelihood, not proof.")
+    if claimed == "likely_authentic" and not strong:
+        return AxisAssessment(heading=heading, state="LIKELY_AUTHENTIC", label="No AI-writing indicators found",
+                              summary="Nothing typical of AI-generated writing was found. A person may still have used AI and edited it.")
+    return AxisAssessment(heading=heading, state="INCONCLUSIVE", label="Inconclusive",
+                          summary="The indicators found are weak or mixed.")
+
+
 def _error_note(err: str) -> str:
     e = err.lower()
     if "not configured" in e:
@@ -635,6 +667,18 @@ def build(state) -> TrustReport:
             recommendation = f"{base} {extra}".strip()
             caveats.insert(0, "A screenshot cannot prove that a payment, message or notice really happened or was sent")
             caveats.append("AI generation was not assessed in this mode")
+
+    if state.input_type == "text" and getattr(state, "mode", "") == "ai_generated":
+        axis = _assess_text(state)
+        axes, overall = [axis], Assessment(state=axis.state, label=axis.label, summary=axis.summary)
+        recommendation = TEXT_RECOMMENDATION[axis.state]
+        caveats = ["Detecting AI-written text is unreliable: fluent human writing and edited AI writing look alike",
+                   "This says nothing about whether the text is true: use News / Claim mode for that",
+                   "A person can write formulaic text, and AI text can be edited to read naturally"]
+        if visual:
+            caveats += [l for l in visual.limitations[:2] if l.strip()]
+            if visual.authentic_cues:
+                notes.append("Cues consistent with human writing: " + "; ".join(visual.authentic_cues[:4]))
 
     report = TrustReport(
         analysis_mode=state.analysis_mode, input_type=state.input_type, analysis_intent=intent,
