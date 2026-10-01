@@ -1,0 +1,197 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrG" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,5 L0,10 z" fill="#94A3B8"/></marker>
+    <marker id="arrT" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,5 L0,10 z" fill="#14B8A6"/></marker>
+    <marker id="arrA" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,5 L0,10 z" fill="#F59E0B"/></marker>
+    <marker id="arrC" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,5 L0,10 z" fill="#22D3EE"/></marker>
+  </defs>
+  <rect width="1600" height="900" fill="#0B0F17"/>
+
+  <!-- Title -->
+  <text x="40" y="52" fill="#E6EAF2" font-size="28" font-weight="700">◈ TrustLens AI — System Architecture</text>
+  <text x="40" y="80" fill="#94A3B8" font-size="15">Browser → FastAPI → CrewAI Flow (deterministic forensics + rules, Gemini-powered agents) → evidence-backed Trust Report. Stateless. Key never leaves the backend.</text>
+
+  <!-- Legend -->
+  <rect x="1150" y="36" width="14" height="14" rx="3" fill="#6366F1"/><text x="1170" y="48" fill="#E6EAF2" font-size="13">Deterministic (RULE)</text>
+  <rect x="1310" y="36" width="14" height="14" rx="3" fill="#14B8A6"/><text x="1330" y="48" fill="#E6EAF2" font-size="13">Gemini (GEMINI)</text>
+  <rect x="1445" y="36" width="14" height="14" rx="3" fill="none" stroke="#F59E0B" stroke-width="2"/><text x="1465" y="48" fill="#E6EAF2" font-size="13">External API</text>
+
+  <!-- ================= CLIENT ================= -->
+  <rect x="40" y="120" width="300" height="560" rx="12" fill="#111827" stroke="#253047"/>
+  <text x="56" y="148" fill="#94A3B8" font-size="12" letter-spacing="2">CLIENT</text>
+  <text x="56" y="176" fill="#E6EAF2" font-size="19" font-weight="600">Browser SPA</text>
+  <text x="56" y="198" fill="#94A3B8" font-size="13">React · Vite · TypeScript · Tailwind v4</text>
+
+  <rect x="56" y="216" width="268" height="92" rx="8" fill="#1A2233" stroke="#253047"/>
+  <text x="68" y="238" fill="#E6EAF2" font-size="14" font-weight="600">InputPanel</text>
+  <text x="68" y="258" fill="#94A3B8" font-size="12.5">Tabs: Screenshot/Image · Message/Text</text>
+  <text x="68" y="276" fill="#94A3B8" font-size="12.5">· News Claim  ·  Demo chips</text>
+  <text x="68" y="294" fill="#94A3B8" font-size="12.5">Button: “Analyze with Gemini”</text>
+
+  <rect x="56" y="320" width="268" height="58" rx="8" fill="#1A2233" stroke="#253047"/>
+  <text x="68" y="342" fill="#E6EAF2" font-size="14" font-weight="600">StageProgress</text>
+  <text x="68" y="362" fill="#94A3B8" font-size="12.5">8 timed stages while the request is in flight</text>
+
+  <rect x="56" y="390" width="268" height="196" rx="8" fill="#1A2233" stroke="#253047"/>
+  <text x="68" y="412" fill="#E6EAF2" font-size="14" font-weight="600">ReportView</text>
+  <text x="68" y="434" fill="#94A3B8" font-size="12.5">Trust gauge · risk / verdict badge</text>
+  <text x="68" y="452" fill="#94A3B8" font-size="12.5">Signal cards with RULE / GEMINI badges</text>
+  <text x="68" y="470" fill="#94A3B8" font-size="12.5">ELA compare: original | heatmap</text>
+  <text x="68" y="488" fill="#94A3B8" font-size="12.5">Deduction table (score is auditable)</text>
+  <text x="68" y="506" fill="#94A3B8" font-size="12.5">Evidence list (claims) · extracted panel</text>
+  <text x="68" y="524" fill="#94A3B8" font-size="12.5">Banner: CACHED DEMO / Gemini unavailable</text>
+  <text x="68" y="542" fill="#94A3B8" font-size="12.5">Disclaimer: indicator, not proof</text>
+  <text x="68" y="560" fill="#94A3B8" font-size="12.5">Privacy: not stored, sent to Gemini only</text>
+
+  <text x="56" y="618" fill="#22D3EE" font-size="12.5">✓ Never holds GEMINI_API_KEY</text>
+  <text x="56" y="640" fill="#22D3EE" font-size="12.5">✓ types/report.ts mirrors models/report.py</text>
+  <text x="56" y="662" fill="#22D3EE" font-size="12.5">✓ Vite proxy /api → :8000</text>
+
+  <!-- ================= API ================= -->
+  <rect x="390" y="120" width="280" height="560" rx="12" fill="#111827" stroke="#253047"/>
+  <text x="406" y="148" fill="#94A3B8" font-size="12" letter-spacing="2">API</text>
+  <text x="406" y="176" fill="#E6EAF2" font-size="19" font-weight="600">FastAPI backend</text>
+  <text x="406" y="198" fill="#94A3B8" font-size="13">Python 3.11–3.13 · Pydantic v2</text>
+
+  <rect x="406" y="216" width="248" height="150" rx="8" fill="#1A2233" stroke="#253047"/>
+  <text x="418" y="238" fill="#E6EAF2" font-size="14" font-weight="600">Endpoints</text>
+  <text x="418" y="258" fill="#94A3B8" font-size="12.5" font-family="'JetBrains Mono', Consolas, monospace">GET  /api/health</text>
+  <text x="418" y="276" fill="#94A3B8" font-size="12.5" font-family="'JetBrains Mono', Consolas, monospace">POST /api/analyze/image</text>
+  <text x="418" y="294" fill="#94A3B8" font-size="12.5" font-family="'JetBrains Mono', Consolas, monospace">POST /api/analyze/text</text>
+  <text x="418" y="312" fill="#94A3B8" font-size="12.5" font-family="'JetBrains Mono', Consolas, monospace">POST /api/analyze/claim</text>
+  <text x="418" y="330" fill="#94A3B8" font-size="12.5" font-family="'JetBrains Mono', Consolas, monospace">GET  /api/demos</text>
+  <text x="418" y="348" fill="#94A3B8" font-size="12.5" font-family="'JetBrains Mono', Consolas, monospace">POST /api/analyze/demo/{id}</text>
+
+  <rect x="406" y="380" width="248" height="130" rx="8" fill="#1A2233" stroke="#253047"/>
+  <text x="418" y="402" fill="#E6EAF2" font-size="14" font-weight="600">Guards</text>
+  <text x="418" y="422" fill="#94A3B8" font-size="12.5">Validate jpg/png/webp ≤ 10 MB</text>
+  <text x="418" y="440" fill="#94A3B8" font-size="12.5">CORS allow-list localhost:5173</text>
+  <text x="418" y="458" fill="#94A3B8" font-size="12.5">60 s Flow timeout (thread executor)</text>
+  <text x="418" y="476" fill="#94A3B8" font-size="12.5">Never fetches user-supplied URLs</text>
+  <text x="418" y="494" fill="#94A3B8" font-size="12.5">Uploads processed in memory only</text>
+
+  <rect x="406" y="524" width="248" height="60" rx="8" fill="#1A2233" stroke="#22D3EE"/>
+  <text x="418" y="546" fill="#E6EAF2" font-size="14" font-weight="600">TrustReport</text>
+  <text x="418" y="566" fill="#94A3B8" font-size="12.5">one Pydantic model for every response</text>
+
+  <text x="406" y="618" fill="#22D3EE" font-size="12.5">✓ config.py loads .env, disables</text>
+  <text x="406" y="636" fill="#22D3EE" font-size="12.5">   CrewAI telemetry before import</text>
+  <text x="406" y="660" fill="#22D3EE" font-size="12.5">✓ On crew failure: rule-only report</text>
+
+  <!-- ================= FLOW ================= -->
+  <rect x="720" y="120" width="520" height="640" rx="12" fill="#111827" stroke="#253047"/>
+  <text x="736" y="148" fill="#94A3B8" font-size="12" letter-spacing="2">ORCHESTRATION</text>
+  <text x="736" y="176" fill="#E6EAF2" font-size="19" font-weight="600">TrustLensFlow — CrewAI Flow</text>
+  <text x="736" y="198" fill="#94A3B8" font-size="13">one run per request · @start / @listen steps · typed FlowState</text>
+
+  <!-- step 1 -->
+  <rect x="736" y="214" width="488" height="66" rx="8" fill="#1A2233" stroke="#253047"/>
+  <rect x="736" y="214" width="6" height="66" rx="3" fill="#6366F1"/>
+  <text x="754" y="236" fill="#E6EAF2" font-size="14" font-weight="600">① forensics  —  deterministic (image only)</text>
+  <text x="754" y="256" fill="#94A3B8" font-size="12.5">EXIF: editor software tag, time mismatch (absence is never a signal)</text>
+  <text x="754" y="272" fill="#94A3B8" font-size="12.5">ELA on JPEG/WebP → anomaly score + heatmap PNG; PNG ⇒ not applicable</text>
+
+  <!-- step 2 -->
+  <rect x="736" y="290" width="488" height="66" rx="8" fill="#1A2233" stroke="#253047"/>
+  <rect x="736" y="290" width="6" height="66" rx="3" fill="#14B8A6"/>
+  <text x="754" y="312" fill="#E6EAF2" font-size="14" font-weight="600">② vision_extract  —  Gemini vision (image only)</text>
+  <text x="754" y="332" fill="#94A3B8" font-size="12.5">google-genai · response_schema = Extracted (classification, fields,</text>
+  <text x="754" y="348" fill="#94A3B8" font-size="12.5">full extracted_text) · temperature 0.2 · 30 s timeout · 1 retry</text>
+
+  <!-- step 3 -->
+  <rect x="736" y="366" width="488" height="66" rx="8" fill="#1A2233" stroke="#253047"/>
+  <rect x="736" y="366" width="6" height="66" rx="3" fill="#6366F1"/>
+  <text x="754" y="388" fill="#E6EAF2" font-size="14" font-weight="600">③ rules  —  deterministic, on raw text or extracted_text</text>
+  <text x="754" y="408" fill="#94A3B8" font-size="12.5">text_rules (EN + Hinglish) · url_rules (IP, shortener, TLD, http, look-alike)</text>
+  <text x="754" y="424" fill="#94A3B8" font-size="12.5">domain_rules: claimed org vs URL registrable domain (known_orgs.json)</text>
+
+  <!-- step 4 -->
+  <rect x="736" y="442" width="488" height="170" rx="8" fill="#1A2233" stroke="#253047"/>
+  <rect x="736" y="442" width="6" height="170" rx="3" fill="#14B8A6"/>
+  <text x="754" y="464" fill="#E6EAF2" font-size="14" font-weight="600">④ analysis crew  —  CrewAI Crew · sequential · LLM = Gemini</text>
+  <rect x="754" y="476" width="214" height="40" rx="6" fill="#0E7490" fill-opacity="0.25" stroke="#14B8A6"/>
+  <text x="764" y="493" fill="#E6EAF2" font-size="12.5" font-weight="600">Extractor</text>
+  <text x="764" y="509" fill="#94A3B8" font-size="11.5">→ Extracted (text mode)</text>
+  <text x="976" y="500" fill="#14B8A6" font-size="18">→</text>
+  <rect x="998" y="476" width="214" height="40" rx="6" fill="#0E7490" fill-opacity="0.25" stroke="#14B8A6"/>
+  <text x="1008" y="493" fill="#E6EAF2" font-size="12.5" font-weight="600">Trust Signal Analyst</text>
+  <text x="1008" y="509" fill="#94A3B8" font-size="11.5">→ SignalSet (key, severity, evidence)</text>
+  <rect x="754" y="526" width="458" height="40" rx="6" fill="#0E7490" fill-opacity="0.25" stroke="#14B8A6"/>
+  <text x="764" y="543" fill="#E6EAF2" font-size="12.5" font-weight="600">Claim Verifier (claim mode)</text>
+  <text x="764" y="559" fill="#94A3B8" font-size="11.5">tools: FactCheckSearchTool · GroundedSearchTool  → ClaimEvidence (never a verdict)</text>
+  <text x="754" y="586" fill="#94A3B8" font-size="12">output_pydantic · max_iter=2 · no delegation · memory off · input treated as data</text>
+  <text x="754" y="603" fill="#94A3B8" font-size="12">rule findings passed as context; LLM can never remove or downgrade a RULE signal</text>
+
+  <!-- step 5 -->
+  <rect x="736" y="622" width="488" height="122" rx="8" fill="#1A2233" stroke="#253047"/>
+  <rect x="736" y="622" width="6" height="122" rx="3" fill="#6366F1"/>
+  <text x="754" y="644" fill="#E6EAF2" font-size="14" font-weight="600">⑤ report  —  reporter.py + rules/scoring.py (the one tunable file)</text>
+  <text x="754" y="666" fill="#94A3B8" font-size="12.5">merge RULE + GEMINI signals · dedupe by key (higher severity wins, sources ∪)</text>
+  <text x="754" y="684" fill="#94A3B8" font-size="12.5">penalty = PENALTIES[key] × {high 1.0, medium 0.6, low 0.3} · per-category caps</text>
+  <text x="754" y="702" fill="#94A3B8" font-size="12.5">score = 100 − Σ  →  75–100 LOW · 45–74 MEDIUM · 0–44 HIGH</text>
+  <text x="754" y="720" fill="#94A3B8" font-size="12.5">claims: verdict from fact-check ratings only (VERIFIED / DEBUNKED / UNVERIFIED)</text>
+  <text x="754" y="738" fill="#94A3B8" font-size="12.5">known-org URLs attenuate shortener/urgency penalties (real bank SMS ≠ scam)</text>
+
+  <!-- ================= EXTERNAL ================= -->
+  <rect x="1290" y="120" width="270" height="640" rx="12" fill="#111827" stroke="#253047"/>
+  <text x="1306" y="148" fill="#94A3B8" font-size="12" letter-spacing="2">EXTERNAL &amp; LOCAL</text>
+
+  <rect x="1306" y="166" width="238" height="196" rx="8" fill="#1A2233" stroke="#F59E0B"/>
+  <text x="1318" y="190" fill="#E6EAF2" font-size="15" font-weight="600">Google Gemini API</text>
+  <text x="1318" y="210" fill="#94A3B8" font-size="12" font-family="'JetBrains Mono', Consolas, monospace">GEMINI_MODEL=gemini-2.5-flash</text>
+  <text x="1318" y="234" fill="#94A3B8" font-size="12.5">• vision extraction (structured)</text>
+  <text x="1318" y="252" fill="#94A3B8" font-size="12.5">• agent reasoning via CrewAI LLM</text>
+  <text x="1318" y="270" fill="#94A3B8" font-size="12.5">   (gemini/… through LiteLLM)</text>
+  <text x="1318" y="288" fill="#94A3B8" font-size="12.5">• google_search grounding (claims)</text>
+  <text x="1318" y="312" fill="#94A3B8" font-size="12.5">Free-tier RPM/RPD limits apply —</text>
+  <text x="1318" y="330" fill="#94A3B8" font-size="12.5">fixtures for demos, no test loops</text>
+  <text x="1318" y="350" fill="#F59E0B" font-size="12">mandatory · meaningfully incorporated</text>
+
+  <rect x="1306" y="378" width="238" height="104" rx="8" fill="#1A2233" stroke="#F59E0B"/>
+  <text x="1318" y="402" fill="#E6EAF2" font-size="15" font-weight="600">Google Fact Check Tools API</text>
+  <text x="1318" y="424" fill="#94A3B8" font-size="12.5">claims:search → ClaimReview</text>
+  <text x="1318" y="442" fill="#94A3B8" font-size="12.5">publisher · url · textualRating</text>
+  <text x="1318" y="460" fill="#94A3B8" font-size="12.5">optional · FACTCHECK_API_KEY</text>
+
+  <rect x="1306" y="498" width="238" height="120" rx="8" fill="#1A2233" stroke="#253047" stroke-dasharray="5 4"/>
+  <text x="1318" y="522" fill="#E6EAF2" font-size="15" font-weight="600">Demo fixtures (local)</text>
+  <text x="1318" y="544" fill="#94A3B8" font-size="12.5">app/demo/*.crew.json recorded</text>
+  <text x="1318" y="562" fill="#94A3B8" font-size="12.5">once via make_demos.py --record</text>
+  <text x="1318" y="580" fill="#94A3B8" font-size="12.5">served as analysis_mode=demo_cached</text>
+  <text x="1318" y="598" fill="#94A3B8" font-size="12.5">rules + forensics still run live</text>
+
+  <rect x="1306" y="634" width="238" height="108" rx="8" fill="#1A2233" stroke="#253047"/>
+  <text x="1318" y="658" fill="#E6EAF2" font-size="15" font-weight="600">Config (.env)</text>
+  <text x="1318" y="680" fill="#94A3B8" font-size="12" font-family="'JetBrains Mono', Consolas, monospace">GEMINI_API_KEY</text>
+  <text x="1318" y="698" fill="#94A3B8" font-size="12" font-family="'JetBrains Mono', Consolas, monospace">GEMINI_MODEL · FACTCHECK_API_KEY</text>
+  <text x="1318" y="716" fill="#94A3B8" font-size="12" font-family="'JetBrains Mono', Consolas, monospace">CREWAI_DISABLE_TELEMETRY=true</text>
+  <text x="1318" y="734" fill="#94A3B8" font-size="12" font-family="'JetBrains Mono', Consolas, monospace">OTEL_SDK_DISABLED=true</text>
+
+  <!-- ================= ARROWS ================= -->
+  <!-- client -> api -->
+  <line x1="340" y1="300" x2="388" y2="300" stroke="#94A3B8" stroke-width="2" marker-end="url(#arrG)"/>
+  <text x="344" y="290" fill="#94A3B8" font-size="11">/api/* request</text>
+  <line x1="390" y1="560" x2="342" y2="560" stroke="#22D3EE" stroke-width="2" marker-end="url(#arrC)"/>
+  <text x="344" y="586" fill="#22D3EE" font-size="11">TrustReport JSON</text>
+  <!-- api -> flow -->
+  <line x1="670" y1="300" x2="718" y2="300" stroke="#94A3B8" stroke-width="2" marker-end="url(#arrG)"/>
+  <text x="672" y="290" fill="#94A3B8" font-size="11">kickoff(state)</text>
+  <line x1="720" y1="560" x2="672" y2="560" stroke="#22D3EE" stroke-width="2" marker-end="url(#arrC)"/>
+  <text x="674" y="586" fill="#22D3EE" font-size="11">FlowState → report</text>
+  <!-- step2 -> gemini -->
+  <line x1="1224" y1="323" x2="1304" y2="290" stroke="#14B8A6" stroke-width="2" marker-end="url(#arrT)"/>
+  <!-- step4 -> gemini -->
+  <line x1="1224" y1="500" x2="1304" y2="330" stroke="#14B8A6" stroke-width="2" marker-end="url(#arrT)"/>
+  <!-- claim verifier -> factcheck -->
+  <line x1="1224" y1="546" x2="1304" y2="440" stroke="#F59E0B" stroke-width="2" marker-end="url(#arrA)"/>
+  <!-- fixtures -> step4 (dashed) -->
+  <line x1="1306" y1="560" x2="1226" y2="590" stroke="#94A3B8" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#arrG)"/>
+  <text x="1232" y="612" fill="#94A3B8" font-size="11">demo mode</text>
+
+  <!-- ================= FOOTER: TrustReport contract ================= -->
+  <rect x="40" y="778" width="1520" height="96" rx="12" fill="#111827" stroke="#253047"/>
+  <text x="56" y="804" fill="#94A3B8" font-size="12" letter-spacing="2">TRUSTREPORT CONTRACT (models/report.py ⇄ types/report.ts)</text>
+  <text x="56" y="828" fill="#E6EAF2" font-size="12.5" font-family="'JetBrains Mono', Consolas, monospace">{ analysis_mode, input_type, classification, trust_score, risk_level, verdict, confidence, extracted, signals[ key, title, severity, category, sources[RULE|GEMINI], explanation, evidence, penalty ],</text>
+  <text x="56" y="848" fill="#E6EAF2" font-size="12.5" font-family="'JetBrains Mono', Consolas, monospace">  evidence[ source, url, rating, stance ], recommendation, ela{ status, heatmap_b64, region }, gemini_error, agents_used[], caveats[], disclaimer }</text>
+  <text x="56" y="868" fill="#22D3EE" font-size="12.5">Principle: trust backed by evidence, not appearance — every signal shows what was found, why it matters, the quoted evidence, and what remains uncertain.</text>
+</svg>

@@ -1,0 +1,13 @@
+fastapi
+uvicorn[standard]
+python-multipart
+pydantic>=2
+pydantic-settings
+python-dotenv
+crewai>=1.0,<2
+google-genai
+httpx
+pillow
+piexif
+tldextract
+numpy
