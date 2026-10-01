@@ -1,6 +1,6 @@
 """Loaders and inference for the specialist models (CPU, ONNX Runtime / CTranslate2, no PyTorch).
 
-Every public function returns the model's real output or raises; callers (services/flow.py) record
+Every public function returns the model's real output or raises; services/specialists.py records
 what happened per slot. Nothing here invents a value: if a model cannot run, the slot is reported
 MODEL_UNAVAILABLE or FAILED and the analysis continues on Gemini + deterministic evidence.
 """

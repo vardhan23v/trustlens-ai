@@ -148,7 +148,7 @@ export default function Home() {
   // validation as the upload zone.
   const [dragging, setDragging] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
-  const live = useRef({ busy, canSubmit, onSubmit: () => {} })
+  const live = useRef({ busy, canSubmit, onSubmit: () => {}, onModeChange: (_m: Mode | null) => {} })
   const takeFile = useCallback((f: File | undefined, how: string) => {
     if (!f) return
     const problem = validateFile(f)
@@ -201,13 +201,13 @@ export default function Home() {
       if (e.metaKey || e.ctrlKey || e.altKey) return
       if (e.key === 'Escape') {
         setHelpOpen(false)
-        if (!live.current.busy && !typing) setMode(null)
+        if (!live.current.busy && !typing) live.current.onModeChange(null)
         else if (typing) t?.blur()
         return
       }
       if (typing || live.current.busy) return
-      if (e.key === '1') setMode('news_claim')
-      else if (e.key === '2') setMode('ai_generated')
+      if (e.key === '1') live.current.onModeChange('news_claim')
+      else if (e.key === '2') live.current.onModeChange('ai_generated')
       else if (e.key === '?') setHelpOpen((o) => !o)
       else if (e.key === 'Enter' && live.current.canSubmit && t?.tagName !== 'BUTTON') live.current.onSubmit()
     }
@@ -237,7 +237,7 @@ export default function Home() {
     void run({ mode, file, demoId, mediaType, imageUrl: previewUrl })
   }
 
-  live.current = { busy, canSubmit, onSubmit }
+  live.current = { busy, canSubmit, onSubmit, onModeChange }
 
   return (
     <div className="mx-auto min-h-screen max-w-6xl overflow-x-clip px-4 pb-16">

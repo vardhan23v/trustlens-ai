@@ -7,7 +7,8 @@
   MODEL_UNAVAILABLE instead of risking the whole service.
 * All run on CPU through ONNX Runtime / CTranslate2 — no PyTorch.
 * Each slot carries what the model is, where it came from and its known limits; those travel into
-  every report. A model's score is evidence, never a verdict (services/fusion.py decides states).
+  every report. A model's score is evidence, never a verdict: states are decided in
+  services/reporter.py, confidence and the evidence list in services/fusion.py.
 """
 import gc
 import importlib.util

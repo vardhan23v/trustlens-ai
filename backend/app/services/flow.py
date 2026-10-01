@@ -1,7 +1,9 @@
 """TrustLensFlow — one CrewAI Flow run per request.
 
-forensics (image) → vision_extract (image, Gemini) → rules (deterministic) → analyze (CrewAI crew, Gemini)
-The report is built from the final state by services/reporter.py. Score and verdict are Python-only.
+forensics (EXIF/ELA or ffmpeg, plus the specialist models) → vision_extract (Gemini: image, media or text)
+→ rules (deterministic, News / Claim only) → analyze (CrewAI claim crew, News / Claim only)
+The report is built from the final state by services/reporter.py and services/fusion.py. States, score
+and verdict are computed in Python only.
 """
 import asyncio
 import logging

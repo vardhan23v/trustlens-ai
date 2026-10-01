@@ -6,6 +6,7 @@ from fastapi import APIRouter
 from fastapi.concurrency import run_in_threadpool
 
 from app.config import DEMO_DIR
+from app.ml import models as _models  # noqa: F401  (registers the loaders; loads no weights)
 from app.ml import registry
 from app.services import specialists
 from app.services.media import probe

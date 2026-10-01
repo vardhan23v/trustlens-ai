@@ -547,8 +547,8 @@ def build(state) -> TrustReport:
         notes += vnotes
         if state.tool_errors:
             notes.append("A search tool failed during verification; results may be incomplete.")
-        notes.append("Semantic-retrieval and NLI models: MODEL_UNAVAILABLE. Each source's stance was read from its "
-                     "headline by Gemini; the verdict is computed in code from independent listed sources.")
+        notes.append("Each source's stance was read from its headline; the verdict is computed in code from "
+                     "independent listed sources.")
         for i, sc in enumerate((ce.sub_claims if ce else [])[:4], 1):
             own = [e for e in evidence if e.claim_index == i]
             status, n_sup, n_ref = _stance_status(own)
@@ -687,7 +687,10 @@ def build(state) -> TrustReport:
         worst = ranked[0] if ranked else axes[0]
         overall = Assessment(state=worst.state, label=worst.label, summary=f"{worst.heading}: {worst.summary}")
         recommendation = MEDIA_RECOMMENDATION.get(worst.state, MEDIA_RECOMMENDATION["INCONCLUSIVE"])
-        caveats = ["Only Gemini examined this file; no pretrained deepfake or voice-spoof detector was run",
+        ran = {slot for slot, r in getattr(state, "model_runs", {}).items() if r.get("status") == "RAN"}
+        caveats = [("Pretrained detectors ran alongside Gemini, but they score sampled frames and short audio windows and "
+                    "are wrong on a meaningful share of files" if ran & {"video_deepfake", "audio_spoof"} else
+                    "Only Gemini examined this file; no pretrained deepfake or voice-spoof detector could be run"),
                    "Detecting synthetic video or cloned voices by inspection is unreliable; a clean result is not proof",
                    NOT_TRUE_NOTE.replace("image", "recording"),
                    "Speakers are not identified: who is speaking was not verified"]

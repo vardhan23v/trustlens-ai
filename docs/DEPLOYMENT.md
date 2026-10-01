@@ -1,107 +1,102 @@
-# TrustLens AI — Production Deployment Guide
+# TrustLens AI — deployment
 
-This guide details the procedures for deploying TrustLens AI in containerized and cloud environments (Docker, Railway, Kubernetes).
+TrustLens deploys as **one Docker container** that serves the API and the built frontend. The repository supports two
+paths: plain Docker, and Railway (which uses the same Dockerfile). There are no Kubernetes manifests, Helm charts or
+compose files in the repository.
 
----
+## What the image contains
 
-## 1. Environment Configuration
+`Dockerfile` has two stages:
 
-Ensure the following environment variables are provisioned in your hosting environment:
+1. `node:20-alpine` — `npm ci` and `npm run build` for the frontend.
+2. `python:3.12-slim` — installs `libgl1` and `libglib2.0-0` (needed by OpenCV, which the OCR model uses), installs
+   `backend/requirements.txt`, runs `python scripts/fetch_models.py` to download the pretrained model weights
+   (about 0.9 GB), then copies the backend and the built frontend.
 
-| Variable | Description | Required | Default |
-| :--- | :--- | :--- | :--- |
-| `GEMINI_API_KEY` | Google Gemini API key for multimodal reasoning | **Yes** | — |
-| `PORT` | Listening HTTP port for FastAPI server | No | `8000` |
-| `DEBUG` | Enable verbose debugging logs | No | `false` |
-| `RAILWAY_PUBLIC_DOMAIN` | Domain URL for Railway CORS whitelisting | No | — |
-| `DATABASE_URL` | Optional PostgreSQL connection string for report persistence | No | — |
-| `OPENROUTER_API_KEY` | Optional OpenRouter API key for secondary wording layer | No | — |
+The container starts `uvicorn app.main:app` on `${PORT:-8000}`. FastAPI serves `/api/*` and, from the same origin,
+the frontend.
 
----
+Notes:
 
-## 2. Docker Deployment
+- Model weights are fetched at **build** time, never at request time. A download that fails during the build is
+  reported in the build log and that model reports `MODEL_UNAVAILABLE` at runtime; the build itself still succeeds.
+- The weights layer is rebuilt whenever anything under `backend/app/ml/` or `backend/scripts/fetch_models.py` changes.
+- `.dockerignore` keeps `.env` files, local virtualenvs, local model weights, `docs/` and Markdown files out of the
+  image.
+- ffmpeg is not installed with apt; the `imageio-ffmpeg` package bundles a binary.
 
-### Building the Image
+## Variables
+
+| Variable | Default | Notes |
+|---|---|---|
+| `GEMINI_API_KEY` | — | Needed for full analysis. The service starts without it and returns deterministic and model-only results |
+| `GEMINI_MODEL` | `gemini-3.6-flash` | |
+| `FACTCHECK_API_KEY` | — | Enables Google Fact Check Tools lookups |
+| `DATABASE_URL` | — | PostgreSQL connection string; enables stored reports |
+| `OPENROUTER_API_KEY` | — | Optional PDF wording layer; needs `OPENROUTER_REPORT_MODEL` too |
+| `OPENROUTER_REPORT_MODEL` | — | Must be a free OpenRouter model id ending in `:free` |
+| `TRUSTLENS_ML` | `1` | `0` switches every pretrained model off |
+| `TRUSTLENS_MODEL_DIR` | `backend/models` | Where the weights live inside the image |
+| `MAX_UPLOAD_MB` | `10` | Image upload cap |
+| `LLM_TIMEOUT_S` | `30` | Timeout for a single Gemini call |
+| `FLOW_TIMEOUT_S` | `60` | Default per-request limit (longer limits are set per mode in `routes/analyze.py`) |
+| `DEBUG` | `false` | |
+| `PORT` | `8000` | Set by the platform |
+| `RAILWAY_PUBLIC_DOMAIN` | — | Set by Railway; added to the CORS allow-list |
+
+Never commit keys. Locally they go in `backend/.env`, which is git-ignored.
+
+## Docker
+
 ```bash
-docker build -t trustlens-ai:latest -f Dockerfile .
+docker build -t trustlens-ai .
+docker run -d --name trustlens-ai -p 8000:8000 -e GEMINI_API_KEY="..." trustlens-ai
 ```
 
-### Running the Container
+Open `http://localhost:8000`.
+
+## Railway
+
+`railway.json` tells Railway to build with the Dockerfile, health-check `/api/health` (120 s timeout) and restart on
+failure. It is a build configuration, not a one-click template.
+
 ```bash
-docker run -d \
-  --name trustlens-ai \
-  -p 8000:8000 \
-  -e GEMINI_API_KEY="your_api_key_here" \
-  trustlens-ai:latest
+railway login
+railway init                      # or: railway link
+railway variables --set GEMINI_API_KEY=...
+railway up
 ```
 
----
+To store reports, add a PostgreSQL service and reference it from the app service:
 
-## 3. Railway One-Click Deployment
-
-TrustLens AI includes a preconfigured `railway.json` blueprint.
-1. Connect your GitHub repository to Railway.
-2. Under **Variables**, add `GEMINI_API_KEY`.
-3. Railway automatically detects the multi-stage build, builds the frontend static assets, mounts them inside FastAPI, and deploys.
-
----
-
-## 4. Kubernetes Manifest Example
-
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: trustlens-backend
-  labels:
-    app: trustlens
-spec:
-  replicas: 2
-  selector:
-    matchLabels:
-      app: trustlens
-  template:
-    metadata:
-      labels:
-        app: trustlens
-    spec:
-      containers:
-      - name: trustlens
-        image: trustlens-ai:latest
-        ports:
-        - containerPort: 8000
-        env:
-        - name: GEMINI_API_KEY
-          valueFrom:
-            secretKeyRef:
-              name: trustlens-secrets
-              key: gemini-api-key
-        resources:
-          limits:
-            cpu: "2"
-            memory: "2Gi"
-          requests:
-            cpu: "500m"
-            memory: "512Mi"
-        livenessProbe:
-          httpGet:
-            path: /api/health
-            port: 8000
-          initialDelaySeconds: 10
-          periodSeconds: 15
-        readinessProbe:
-          httpGet:
-            path: /api/health
-            port: 8000
-          initialDelaySeconds: 5
-          periodSeconds: 10
-```
-
----
-
-## 5. Health Monitoring & Verification
-Verify deployment readiness via the health check endpoint:
 ```bash
-curl -f https://<your-service-url>/api/health
+railway add --database postgres
+railway variables --service <app-service> --set 'DATABASE_URL=${{Postgres.DATABASE_URL}}'
 ```
-A return payload containing `{"status": "ok"}` confirms that all routes and Gemini bindings are active.
+
+The app creates its one table (`analyses`) on first use.
+
+## Sizing
+
+| Memory limit | What happens |
+|---|---|
+| ~1 GB | The app runs. Models are loaded one at a time and unloaded to make room. The speech detector (about 650 MB) is skipped and reports `MODEL_UNAVAILABLE` |
+| 2 GB or more | Every model can load |
+
+The memory guard reads the container's cgroup limit before loading a model, so a model that will not fit is skipped
+rather than crashing the service. CPU threads per model follow the container's CPU quota (1 to 4).
+
+Run a single replica. The result cache is in process memory, so several replicas would give inconsistent cache hits
+unless a database is configured; a multi-replica setup has not been tested.
+
+## Verifying a deployment
+
+```bash
+curl -s https://<host>/api/health            # process is up; shows whether a key and database are configured
+curl -s https://<host>/api/models/selftest   # loads every model and runs it on bundled inputs
+```
+
+`/api/health` returning `{"status": "ok", ...}` only means the process is up: it does not contact Gemini.
+`gemini_configured` says a key is set, and `database` is `connected`, `unreachable` or `not_configured`. Use the
+self-test to see which models actually run on this host, and run one demo
+(`curl -X POST https://<host>/api/analyze/demo/viral_post`) to exercise the pipeline.

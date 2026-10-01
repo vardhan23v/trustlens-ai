@@ -48,7 +48,9 @@ def _signal_evidence(i: int, s: Signal, modality: str, gemini_model: str) -> Evi
     return EvidenceSignal(
         signal_id=f"sig-{i:02d}-{s.key}", category=s.category,
         modality="text" if dim == "content_risk" else modality,
-        source_type="RULE" if rule else "GEMINI", model="" if rule and len(s.sources) == 1 else gemini_model,
+        # a finding raised only by a pretrained model is MODEL evidence, not Gemini's
+        source_type="RULE" if rule else "GEMINI" if "GEMINI" in s.sources else "MODEL",
+        model=gemini_model if "GEMINI" in s.sources else "",
         finding=s.title, direction=direction, confidence=s.severity, reliability=reliability, relevance=rel,
         dimension=dim, evidence=s.evidence, limitations=[s.uncertainty] if s.uncertainty else [])
 
@@ -169,7 +171,7 @@ def enrich(report: TrustReport, state) -> TrustReport:
     report.stages = [Stage(**st) for st in state.stages]
     report.specialist_models = [SpecialistModel(**m) for m in registry.status(mode, kind, state.model_runs)]
     report.score_scope = SCORE_SCOPE[mode]
-    report.notes = [n for n in report.notes if not n.startswith(("Specialist models:", "Semantic-retrieval and NLI"))]
+    report.notes = [n for n in report.notes if not n.startswith("Specialist models:")]
     out = state.model_out
     # a detector result that may be used for this file (the image detector does not apply to screenshots / documents)
     image_det = out.get("p_generated") is not None and specialists.detector_applies(state)

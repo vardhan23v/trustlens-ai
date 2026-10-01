@@ -1,7 +1,7 @@
 """Gemini multimodal examination of an uploaded video or audio file (one structured call).
 
-Gemini is the only examiner here: no pretrained deepfake or voice-spoof detector is installed, and
-the report says so. Transcription and the observations both come from this call.
+Pretrained models (frame detector, speech detector, Whisper) run separately in services/specialists.py;
+this call is Gemini's own examination: transcript, spoken claims and timestamped observations.
 """
 import time
 

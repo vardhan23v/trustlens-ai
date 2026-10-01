@@ -1,5 +1,0 @@
-# Optional runtime for specialist detectors (NOT installed on the deployed service).
-# No detector is wired in yet: see docs/MODEL_SELECTION.md and app/ml/registry.py.
-# Install on a host with >= 4 GB RAM, then set TRUSTLENS_ML=1.
-torch
-transformers
