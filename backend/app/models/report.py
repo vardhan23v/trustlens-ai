@@ -6,7 +6,10 @@ from pydantic import BaseModel, Field
 from app.models.llm_outputs import Extracted
 
 Severity = Literal["high", "medium", "low"]
-Category = Literal["image_forensics", "url_domain", "message_content", "claim_evidence"]
+Category = Literal["image_forensics", "visual_analysis", "url_domain", "message_content", "claim_evidence"]
+Intent = Literal["synthetic_detection", "artifact_authenticity"]
+AssessmentState = Literal["LIKELY_AUTHENTIC", "LIKELY_FABRICATED", "LIKELY_SYNTHETIC", "MANIPULATED",
+                          "INCONCLUSIVE", "UNVERIFIED", "NOT_ASSESSED"]
 Source = Literal["RULE", "GEMINI"]
 
 DISCLAIMER = "Trust Score is a risk indicator, not proof of authenticity or fraud."
@@ -47,9 +50,23 @@ class CategoryBreakdown(BaseModel):
     applied: float  # min(raw, cap) — what was actually subtracted
 
 
+class Assessment(BaseModel):
+    """One axis of the result. Computed in Python from the signals, never taken from the model."""
+    state: AssessmentState
+    label: str
+    summary: str
+
+
 class TrustReport(BaseModel):
     analysis_mode: Literal["live", "demo_cached"] = "live"
     input_type: Literal["image", "text", "claim"]
+    # Image input only: what the user asked TrustLens to verify, and the two separate answers.
+    # "Not AI-generated" does not mean "true", so media and artifact are assessed independently.
+    analysis_intent: Optional[Intent] = None
+    overall_assessment: Optional[Assessment] = None
+    media_assessment: Optional[Assessment] = None
+    artifact_assessment: Optional[Assessment] = None
+    confidence_boosters: list[str] = Field(default_factory=list)  # "What would increase confidence?"
     classification: str = "other"
     trust_score: int
     risk_level: Literal["LOW", "MEDIUM", "HIGH"]

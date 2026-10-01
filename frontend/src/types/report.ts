@@ -1,12 +1,29 @@
 // Mirrors backend/app/models/report.py and backend/app/models/llm_outputs.py exactly.
 
 export type Severity = 'high' | 'medium' | 'low'
-export type Category = 'image_forensics' | 'url_domain' | 'message_content' | 'claim_evidence'
+export type Category = 'image_forensics' | 'visual_analysis' | 'url_domain' | 'message_content' | 'claim_evidence'
 export type Source = 'RULE' | 'GEMINI'
 export type InputType = 'image' | 'text' | 'claim'
 export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH'
 export type Verdict = 'VERIFIED_BY_SOURCE' | 'DEBUNKED_BY_SOURCE' | 'UNVERIFIED'
 export type AnalysisMode = 'live' | 'demo_cached'
+/** Image input: what the user asked TrustLens to verify. Sent as the `analysis_mode` form field. */
+export type Intent = 'synthetic_detection' | 'artifact_authenticity'
+export type AssessmentState =
+  | 'LIKELY_AUTHENTIC'
+  | 'LIKELY_FABRICATED'
+  | 'LIKELY_SYNTHETIC'
+  | 'MANIPULATED'
+  | 'INCONCLUSIVE'
+  | 'UNVERIFIED'
+  | 'NOT_ASSESSED'
+
+export interface Assessment {
+  state: AssessmentState
+  label: string
+  summary: string
+}
+
 export type ElaStatus = 'ok' | 'not_applicable_lossless' | 'not_applicable' | 'error'
 
 export interface Extracted {
@@ -63,6 +80,11 @@ export interface CategoryBreakdown {
 export interface TrustReport {
   analysis_mode: AnalysisMode
   input_type: InputType
+  analysis_intent: Intent | null
+  overall_assessment: Assessment | null
+  media_assessment: Assessment | null
+  artifact_assessment: Assessment | null
+  confidence_boosters: string[]
   classification: string
   trust_score: number
   risk_level: RiskLevel

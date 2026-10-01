@@ -1,3 +1,5 @@
+import type { Intent } from '../types/report'
+
 export const STAGES = [
   'Reading content',
   'Extracting information',
@@ -15,15 +17,23 @@ export const HOLD_STAGE = STAGES.indexOf('Gemini reasoning')
 interface Props {
   /** Index of the active stage; stages below it are done. `STAGES.length` = all done. */
   stage: number
+  /** Image runs: what is being verified, shown above the stages. */
+  intent?: Intent | null
 }
 
-export default function StageProgress({ stage }: Props) {
+const HEADLINE: Record<Intent, string> = {
+  synthetic_detection: 'Analyzing for AI generation and manipulation…',
+  artifact_authenticity: 'Analyzing artifact authenticity…',
+}
+
+export default function StageProgress({ stage, intent }: Props) {
   const current = STAGES[Math.min(stage, STAGES.length - 1)]
   return (
     <section aria-label="Analysis progress" className="card animate-fade-up p-4 sm:p-6">
       <p className="sr-only" role="status">
         {stage >= STAGES.length ? 'Finishing' : `Step ${stage + 1} of ${STAGES.length}: ${current}`}
       </p>
+      {intent && <p className="mb-4 text-sm font-medium text-accent">{HEADLINE[intent]}</p>}
       <ol className="grid gap-3 md:grid-cols-8 md:gap-2" aria-hidden="true">
         {STAGES.map((label, i) => {
           const done = i < stage

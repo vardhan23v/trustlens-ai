@@ -65,7 +65,8 @@ def run_image_crew(extracted: Extracted, rule_findings: str) -> SignalSet:
     last: Exception | None = None
     for attempt in range(2):
         analyst = agents.analyst_agent()
-        t = tasks.signals_task(analyst, extracted.model_dump_json(indent=1), rule_findings, retry=attempt == 1)
+        t = tasks.signals_task(analyst, extracted.model_dump_json(indent=1), rule_findings, retry=attempt == 1,
+                               artifact=True)
         try:
             result = _crew([analyst], [t]).kickoff()
             return _parse(result.tasks_output[-1], SignalSet)

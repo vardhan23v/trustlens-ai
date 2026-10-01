@@ -5,7 +5,7 @@ import InputPanel from '../components/InputPanel'
 import ReportView from '../components/ReportView'
 import StageProgress, { HOLD_STAGE, STAGES } from '../components/StageProgress'
 import { analyze, getDemos, getHealth, isMock } from '../services/api'
-import type { Demo, Health, InputType, TrustReport } from '../types/report'
+import type { Demo, Health, InputType, Intent, TrustReport } from '../types/report'
 import { prefersReducedMotion, sleep } from '../utils/format'
 
 type Phase = 'idle' | 'analyzing' | 'result' | 'error'
@@ -17,6 +17,7 @@ interface RunRequest {
   text?: string
   file?: File | null
   demoId?: string | null
+  intent?: Intent | null
   /** Image shown as "original" in the report (image mode only). */
   imageUrl?: string | null
 }
@@ -24,6 +25,9 @@ interface RunRequest {
 export default function Home() {
   const [mode, setMode] = useState<InputType>('image')
   const [texts, setTexts] = useState<{ text: string; claim: string }>({ text: '', claim: '' })
+  // Image tab: the user first says what they want verified.
+  const [intent, setIntent] = useState<Intent | null>(null)
+  const [runIntent, setRunIntent] = useState<Intent | null>(null)
   const [file, setFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   // The demo currently loaded into an input; cleared as soon as the user edits that input.
@@ -68,6 +72,7 @@ export default function Home() {
     setReport(null)
     setAnnounce('')
     setStage(0)
+    setRunIntent(req.mode === 'image' ? (req.intent ?? null) : null)
 
     // Timed walk through the stages; holds on "Gemini reasoning" until the response arrives.
     const timer = window.setInterval(() => setStage((s) => Math.min(s + 1, HOLD_STAGE)), STAGE_MS)
@@ -119,6 +124,7 @@ export default function Home() {
     setMode(d.input_type)
     setDemo({ id: d.id, mode: d.input_type })
     if (d.input_type === 'image') {
+      setIntent('artifact_authenticity') // the demo notices are artifact checks
       setFile(null)
       setPreviewUrl(d.image_url)
     } else {
@@ -131,17 +137,18 @@ export default function Home() {
       demoId: d.id,
       text: d.text ?? '',
       imageUrl: d.input_type === 'image' ? d.image_url : null,
+      intent: d.input_type === 'image' ? 'artifact_authenticity' : null,
     })
   }
 
   const activeDemoId = demo?.mode === mode ? demo.id : null
   const currentText = mode === 'image' ? '' : texts[mode]
-  const canSubmit = mode === 'image' ? !!file || !!activeDemoId : currentText.trim().length > 0
+  const canSubmit = mode === 'image' ? !!intent && (!!file || !!activeDemoId) : currentText.trim().length > 0
 
   const onSubmit = () => {
     if (busy || !canSubmit) return
     if (mode === 'image') {
-      void run({ mode, file, demoId: activeDemoId, imageUrl: previewUrl })
+      void run({ mode, file, demoId: activeDemoId, imageUrl: previewUrl, intent })
     } else {
       void run({ mode, text: currentText, demoId: activeDemoId })
     }
@@ -162,6 +169,11 @@ export default function Home() {
           file={file}
           previewUrl={previewUrl}
           onFile={onFile}
+          intent={intent}
+          onIntentChange={(i) => {
+            setIntent(i)
+            if (demo?.mode === 'image') setDemo(null)
+          }}
           demos={demos}
           activeDemoId={activeDemoId}
           onPickDemo={onPickDemo}
@@ -171,7 +183,7 @@ export default function Home() {
         {phase === 'error' && error && <ErrorCard message={error} />}
 
         <div ref={resultRef} className="scroll-mt-4 space-y-6">
-          {busy && <StageProgress stage={stage} />}
+          {busy && <StageProgress stage={stage} intent={runIntent} />}
           {phase === 'result' && report && <ReportView report={report} originalUrl={reportImageUrl} />}
         </div>
 

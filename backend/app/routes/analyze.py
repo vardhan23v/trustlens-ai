@@ -1,4 +1,6 @@
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from typing import Literal
+
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
 
 from app.config import settings
@@ -24,14 +26,19 @@ def _clean(text: str) -> str:
 
 
 @router.post("/analyze/image", response_model=TrustReport)
-async def analyze_image(file: UploadFile = File(...)):
+async def analyze_image(
+    file: UploadFile = File(...),
+    # What the user wants verified. (The report's own `analysis_mode` field means live vs cached demo,
+    # so the report echoes this back as `analysis_intent`.)
+    analysis_mode: Literal["synthetic_detection", "artifact_authenticity"] = Form("artifact_authenticity"),
+):
     data = await file.read(settings.MAX_UPLOAD_MB * 1024 * 1024 + 1)  # in memory only, never written to disk
     if len(data) > settings.MAX_UPLOAD_MB * 1024 * 1024:
         raise HTTPException(413, f"Image is larger than {settings.MAX_UPLOAD_MB} MB.")
     fmt = image_forensics.sniff_format(data)
     if fmt not in ALLOWED:
         raise HTTPException(415, "Unsupported file. Upload a JPG, PNG or WebP image.")
-    state = await flow.run("image", image_bytes=data, image_format=fmt)
+    state = await flow.run("image", image_bytes=data, image_format=fmt, intent=analysis_mode)
     return reporter.build(state)
 
 

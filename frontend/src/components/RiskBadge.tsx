@@ -1,13 +1,15 @@
-import type { RiskLevel, Verdict } from '../types/report'
+import type { Assessment, AssessmentState, RiskLevel, Verdict } from '../types/report'
 
 interface Props {
   risk: RiskLevel
   verdict: Verdict | null
   /** LOW with signals present must not claim that none were found. */
   hasSignals?: boolean
+  /** Image reports: the evidence-based state replaces the plain risk band. */
+  assessment?: Assessment | null
 }
 
-type Tone = 'low' | 'med' | 'high'
+export type Tone = 'low' | 'med' | 'high'
 
 const TONE_CLASS: Record<Tone, string> = {
   low: 'border-risk-low/50 bg-risk-low/10 text-risk-low',
@@ -31,8 +33,19 @@ const VERDICT: Record<Verdict, { label: string; sub?: string; tone: Tone }> = {
 
 const LOW_WITH_SIGNALS = { label: 'LOW RISK', sub: 'minor signals found — not verified as authentic', tone: 'low' as Tone }
 
-export default function RiskBadge({ risk, verdict, hasSignals }: Props) {
+export const STATE_TONE: Record<AssessmentState, Tone> = {
+  LIKELY_AUTHENTIC: 'low',
+  LIKELY_FABRICATED: 'high',
+  LIKELY_SYNTHETIC: 'high',
+  MANIPULATED: 'high',
+  INCONCLUSIVE: 'med',
+  UNVERIFIED: 'med',
+  NOT_ASSESSED: 'med',
+}
+
+export default function RiskBadge({ risk, verdict, hasSignals, assessment }: Props) {
   const item =
+    (assessment && { label: assessment.label.toUpperCase(), sub: assessment.summary, tone: STATE_TONE[assessment.state] ?? 'med' }) ||
     (verdict && VERDICT[verdict]) || (risk === 'LOW' && hasSignals ? LOW_WITH_SIGNALS : RISK[risk]) || RISK.MEDIUM
   return (
     <div>

@@ -1,4 +1,4 @@
-import type { Demo, Health, InputType, TrustReport } from '../types/report'
+import type { Demo, Health, InputType, Intent, TrustReport } from '../types/report'
 import mockReport from '../mocks/scam_sms.json'
 import { sleep } from '../utils/format'
 
@@ -12,6 +12,8 @@ export interface AnalyzeRequest {
   text?: string
   file?: File | null
   demoId?: string | null
+  /** Image uploads: what to verify. */
+  intent?: Intent | null
 }
 
 /** Dev aid: `?mock=1` returns the bundled sample report instead of calling the API. */
@@ -71,9 +73,10 @@ export async function getDemos(): Promise<Demo[]> {
   return Array.isArray(demos) ? demos : []
 }
 
-export function analyzeImage(file: File): Promise<TrustReport> {
+export function analyzeImage(file: File, intent: Intent): Promise<TrustReport> {
   const form = new FormData()
   form.append('file', file)
+  form.append('analysis_mode', intent)
   return request<TrustReport>('/analyze/image', { method: 'POST', body: form })
 }
 
@@ -97,7 +100,7 @@ export async function analyze(req: AnalyzeRequest): Promise<TrustReport> {
   if (req.demoId) return analyzeDemo(req.demoId)
   if (req.mode === 'image') {
     if (!req.file) throw new ApiError('Choose an image to analyze.')
-    return analyzeImage(req.file)
+    return analyzeImage(req.file, req.intent ?? 'artifact_authenticity')
   }
   const text = (req.text ?? '').trim()
   if (!text) throw new ApiError('Enter some text to analyze.')

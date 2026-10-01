@@ -6,6 +6,7 @@ export const SEVERITY_LABEL: Record<Severity, string> = { high: 'High', medium: 
 
 export const CATEGORY_LABEL: Record<Category, string> = {
   image_forensics: 'Image forensics',
+  visual_analysis: 'Visual analysis',
   url_domain: 'URL & domain',
   message_content: 'Message content',
   claim_evidence: 'Claim evidence',

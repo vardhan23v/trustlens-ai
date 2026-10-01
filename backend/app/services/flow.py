@@ -12,7 +12,7 @@ from app.config import settings  # noqa: F401  (first: disables CrewAI telemetry
 from crewai.flow.flow import Flow, listen, start
 from pydantic import BaseModel, Field
 
-from app.models.llm_outputs import ClaimEvidence, Extracted, SignalSet
+from app.models.llm_outputs import ClaimEvidence, Extracted, SignalSet, VisualAssessment
 from app.models.report import Ela, Signal
 from app.rules import text_rules
 from app.services import gemini_vision, image_forensics
@@ -23,6 +23,8 @@ log = logging.getLogger("trustlens.flow")
 
 class FlowState(BaseModel):
     input_type: str = "text"  # image | text | claim
+    intent: str = "artifact_authenticity"  # image only: synthetic_detection | artifact_authenticity
+    visual: Optional[VisualAssessment] = None  # synthetic_detection: Gemini's visual examination
     text: str = ""
     image_format: str = ""
     exif_signals: list[Signal] = Field(default_factory=list)
@@ -67,7 +69,12 @@ class TrustLensFlow(Flow[FlowState]):
             s.agents_used.append("vision")
             return
         try:
-            s.extracted = gemini_vision.extract(self.image_bytes, s.image_format)
+            if s.intent == "synthetic_detection":
+                s.visual = gemini_vision.assess_synthetic(self.image_bytes, s.image_format)
+                s.extracted = Extracted(classification=s.visual.media_type or "other",
+                                        extracted_text=s.visual.visible_text)
+            else:
+                s.extracted = gemini_vision.extract(self.image_bytes, s.image_format, s.intent)
             s.agents_used.append("vision")
         except Exception as e:  # continue with an empty extraction; never fabricate
             log.warning("vision step failed: %s", e)
@@ -76,6 +83,8 @@ class TrustLensFlow(Flow[FlowState]):
     @listen(vision_extract)
     def rules(self):
         s = self.state
+        if s.input_type == "image" and s.intent == "synthetic_detection":
+            return  # the question is about the media itself: message/URL rules do not apply
         text = content_text(s.extracted.extracted_text) if s.input_type == "image" else s.text
         result = text_rules.run(text)
         s.rule_signals = text_rules.soften_for_document(result.signals) if s.input_type == "image" else result.signals
@@ -90,6 +99,8 @@ class TrustLensFlow(Flow[FlowState]):
             return
         if s.crew_error:  # vision already failed: nothing to analyse
             return
+        if s.input_type == "image" and s.intent == "synthetic_detection":
+            return  # judged by the multimodal vision step; a text-only agent cannot see the image
         try:
             if s.input_type == "image":
                 s.llm_signals = crews.run_image_crew(s.extracted, findings)
@@ -121,10 +132,10 @@ class TrustLensFlow(Flow[FlowState]):
 
 
 def run_sync(input_type: str, text: str = "", image_bytes: bytes = b"", image_format: str = "",
-             fixture: dict | None = None) -> FlowState:
+             fixture: dict | None = None, intent: str = "artifact_authenticity") -> FlowState:
     flow = TrustLensFlow()
     flow.image_bytes = image_bytes
-    inputs = {"input_type": input_type, "text": text, "image_format": image_format}
+    inputs = {"input_type": input_type, "text": text, "image_format": image_format, "intent": intent}
     if fixture is not None:
         inputs |= {"fixture": fixture, "analysis_mode": "demo_cached"}
     flow.kickoff(inputs=inputs)
@@ -132,22 +143,23 @@ def run_sync(input_type: str, text: str = "", image_bytes: bytes = b"", image_fo
 
 
 async def run(input_type: str, text: str = "", image_bytes: bytes = b"", image_format: str = "",
-              fixture: dict | None = None) -> FlowState:
+              fixture: dict | None = None, intent: str = "artifact_authenticity") -> FlowState:
     """Run the Flow in a worker thread under the global timeout. On timeout the deterministic
     steps are re-run alone so a rule + forensics report is still returned."""
     loop = asyncio.get_running_loop()
     try:
         return await asyncio.wait_for(
-            loop.run_in_executor(None, run_sync, input_type, text, image_bytes, image_format, fixture),
+            loop.run_in_executor(None, run_sync, input_type, text, image_bytes, image_format, fixture, intent),
             settings.FLOW_TIMEOUT_S,
         )
     except asyncio.TimeoutError:
         log.warning("flow timed out after %ss", settings.FLOW_TIMEOUT_S)
-        return deterministic_only(input_type, text, image_bytes, image_format, "timeout")
+        return deterministic_only(input_type, text, image_bytes, image_format, "timeout", intent)
 
 
-def deterministic_only(input_type: str, text: str, image_bytes: bytes, image_format: str, reason: str) -> FlowState:
-    s = FlowState(input_type=input_type, text=text, image_format=image_format, crew_error=reason)
+def deterministic_only(input_type: str, text: str, image_bytes: bytes, image_format: str, reason: str,
+                       intent: str = "artifact_authenticity") -> FlowState:
+    s = FlowState(input_type=input_type, text=text, image_format=image_format, crew_error=reason, intent=intent)
     if input_type == "image":
         s.exif_signals = image_forensics.exif(image_bytes)
         s.ela, s.ela_signal = image_forensics.ela(image_bytes, image_format)

@@ -9,6 +9,8 @@ SIGNAL_KEYS: list[str] = [
     "ip_url", "http_not_https", "fake_authority", "misleading_claim", "inconsistency",
     "editing_software_exif", "exif_time_mismatch", "ela_anomaly", "unusual_language",
     "action_pressure",
+    # image media analysis (synthetic_detection intent)
+    "ai_generation_indicator", "manipulation_indicator", "visual_inconsistency",
 ]
 
 
@@ -60,6 +62,26 @@ class ClaimEvidence(BaseModel):
     events: list[str] = Field(default_factory=list)
     what_to_verify: list[str] = Field(default_factory=list)
     evidence: list[EvidenceItem] = Field(default_factory=list)
+
+
+class VisualIndicator(BaseModel):
+    kind: str = "visual_inconsistency"  # ai_generation | manipulation | visual_inconsistency
+    title: str = ""
+    severity: str = "medium"  # high|medium|low
+    explanation: str = ""
+    evidence: str = ""  # where in the image and what is visible there
+    uncertainty: str = ""
+
+
+class VisualAssessment(BaseModel):
+    """Gemini vision output for the synthetic_detection intent."""
+    media_type: str = "other"  # photo|screenshot|document|illustration|other
+    description: str = ""
+    visible_text: str = ""
+    indicators: list[VisualIndicator] = Field(default_factory=list)
+    authentic_cues: list[str] = Field(default_factory=list)
+    assessment: str = "inconclusive"  # likely_synthetic|likely_authentic|manipulated|inconclusive
+    limitations: list[str] = Field(default_factory=list)
 
 
 Severity = Literal["high", "medium", "low"]

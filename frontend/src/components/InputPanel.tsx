@@ -1,4 +1,5 @@
-import type { Demo, Health, InputType } from '../types/report'
+import type { Demo, Health, InputType, Intent } from '../types/report'
+import IntentCards, { INTENT_COPY } from './IntentCards'
 import AnalyzeButton from './AnalyzeButton'
 import DemoChips from './DemoChips'
 import DropZone from './DropZone'
@@ -15,6 +16,8 @@ interface Props {
   file: File | null
   previewUrl: string | null
   onFile: (file: File | null) => void
+  intent: Intent | null
+  onIntentChange: (intent: Intent) => void
   demos: Demo[]
   activeDemoId: string | null
   onPickDemo: (demo: Demo) => void
@@ -66,7 +69,23 @@ export default function InputPanel(props: Props) {
 
       <div id="input-tabpanel" role="tabpanel" aria-labelledby={`tab-${mode}`} className="mt-4">
         {mode === 'image' ? (
-          <DropZone file={props.file} previewUrl={props.previewUrl} onFile={props.onFile} disabled={busy} />
+          <div className="space-y-4">
+            <IntentCards value={props.intent} onChange={props.onIntentChange} disabled={busy} />
+            {props.intent ? (
+              <div className="animate-fade-up space-y-2">
+                <p className="text-sm text-text">
+                  <span className="text-muted">Mode: </span>
+                  <span className="font-medium text-accent">{INTENT_COPY[props.intent].title}</span>
+                  <span className="text-muted"> — {INTENT_COPY[props.intent].upload}</span>
+                </p>
+                <DropZone file={props.file} previewUrl={props.previewUrl} onFile={props.onFile} disabled={busy} />
+              </div>
+            ) : (
+              <p className="rounded-xl border border-dashed border-border px-4 py-6 text-center text-sm text-muted">
+                Choose what you want to verify to continue.
+              </p>
+            )}
+          </div>
         ) : (
           <TextArea
             value={props.text}
