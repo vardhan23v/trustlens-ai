@@ -211,6 +211,9 @@ def build(state) -> TrustReport:
 
     trust_score, breakdown = score(signals)
     risk = band(trust_score)
+    if risk == "LOW" and any(s.severity == "high" for s in signals):
+        risk = "MEDIUM"  # a high-severity signal is never presented as low risk, whatever the caps allow
+        notes.append("Risk level raised to MEDIUM because a high-severity signal is present.")
     signals.sort(key=lambda s: (-SEVERITY_RANK[s.severity], -s.penalty))
 
     if state.input_type == "claim":
@@ -221,6 +224,8 @@ def build(state) -> TrustReport:
         caveats.append("The trust score reflects message-level signals only, not whether the claim is true")
     else:
         recommendation = RECOMMENDATION[risk]
+        if risk == "LOW" and signals:
+            recommendation = recommendation.replace("No risk signals were found.", "Only minor risk signals were found.")
         if risk != "LOW" and llm and llm.recommendation.strip():
             recommendation = f"{recommendation} {llm.recommendation.strip()}"
         caveats = (["Sender identity cannot be verified from text alone"] if state.input_type == "text" else

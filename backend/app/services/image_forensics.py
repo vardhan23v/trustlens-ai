@@ -6,7 +6,7 @@ from datetime import datetime
 
 import numpy as np
 import piexif
-from PIL import Image, ImageChops, ImageOps
+from PIL import Image, ImageChops, ImageFilter, ImageOps
 
 from app.models.report import Ela, Signal
 
@@ -153,7 +153,9 @@ def ela(image_bytes: bytes, fmt: str) -> tuple[Ela, Signal | None]:
                 severity = "medium"
 
         shown = best[2] if severity else _error_map(im, DISPLAY_QUALITY)
-        scaled = Image.fromarray(np.clip(shown * (255.0 / max(float(shown.max()), 1.0)), 0, 255).astype(np.uint8), mode="L")
+        # gamma 0.5 so faint error levels stay visible next to the peak
+        norm = np.sqrt(np.clip(shown / max(float(shown.max()), 1.0), 0, 1))
+        scaled = Image.fromarray((norm * 255).astype(np.uint8), mode="L").filter(ImageFilter.MaxFilter(3))
         result = Ela(status="ok", heatmap_b64=_heatmap_b64(scaled), width=w, height=h)
         if severity is None:
             return result, None

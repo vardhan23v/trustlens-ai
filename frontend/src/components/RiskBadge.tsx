@@ -3,6 +3,8 @@ import type { RiskLevel, Verdict } from '../types/report'
 interface Props {
   risk: RiskLevel
   verdict: Verdict | null
+  /** LOW with signals present must not claim that none were found. */
+  hasSignals?: boolean
 }
 
 type Tone = 'low' | 'med' | 'high'
@@ -27,8 +29,11 @@ const VERDICT: Record<Verdict, { label: string; sub?: string; tone: Tone }> = {
   UNVERIFIED: { label: 'UNVERIFIED', sub: 'no source-backed verdict available', tone: 'med' },
 }
 
-export default function RiskBadge({ risk, verdict }: Props) {
-  const item = (verdict && VERDICT[verdict]) || RISK[risk] || RISK.MEDIUM
+const LOW_WITH_SIGNALS = { label: 'LOW RISK', sub: 'minor signals found — not verified as authentic', tone: 'low' as Tone }
+
+export default function RiskBadge({ risk, verdict, hasSignals }: Props) {
+  const item =
+    (verdict && VERDICT[verdict]) || (risk === 'LOW' && hasSignals ? LOW_WITH_SIGNALS : RISK[risk]) || RISK.MEDIUM
   return (
     <div>
       <span

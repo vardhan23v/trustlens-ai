@@ -48,7 +48,7 @@ export default function ReportView({ report, originalUrl }: Props) {
         </div>
         <div className="min-w-0 space-y-4">
           <div className="flex flex-wrap items-start gap-x-4 gap-y-3">
-            <RiskBadge risk={report.risk_level} verdict={report.verdict} />
+            <RiskBadge hasSignals={report.signals.length > 0} risk={report.risk_level} verdict={report.verdict} />
             <div className="pt-1">
               <ModeBanner analysisMode={report.analysis_mode} geminiError={report.gemini_error} />
             </div>
