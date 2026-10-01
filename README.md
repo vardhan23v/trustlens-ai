@@ -3,13 +3,39 @@
 **See beyond the digital surface.** TrustLens analyses an image, video, audio clip or piece of text and returns an
 evidence-backed report instead of a single "real / fake" label.
 
-[![Live demo](https://img.shields.io/badge/Live%20demo-Railway-0B0D0E?logo=railway&logoColor=white&style=for-the-badge)](https://trustlens-ai-production-5b04.up.railway.app)
-![Gemini](https://img.shields.io/badge/Gemini-3.6%20Flash-8E75B2?logo=googlegemini&logoColor=white&style=for-the-badge)
-![CrewAI](https://img.shields.io/badge/CrewAI-1.15-FF5A50?style=for-the-badge)
-![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white&style=for-the-badge)
-![React](https://img.shields.io/badge/React%2019%20%2B%20Vite%208-61DAFB?logo=react&logoColor=black&style=for-the-badge)
-![ONNX Runtime](https://img.shields.io/badge/ONNX%20Runtime-CPU-005CED?logo=onnx&logoColor=white&style=for-the-badge)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-optional-4169E1?logo=postgresql&logoColor=white&style=for-the-badge)
+<p align="center">
+  <!-- Project -->
+  <a href="https://trustlens-ai-production-5b04.up.railway.app"><img src="https://img.shields.io/badge/Live%20demo-Railway-0B0D0E?style=for-the-badge&logo=railway&logoColor=white" alt="Live demo" /></a>
+  <img src="https://img.shields.io/badge/ACM%20%C3%97%20MLH%20Hack%20Days%202026-Track%202%3A%20Trust-22D3EE?style=for-the-badge" alt="ACM x MLH Hack Days 2026" />
+  <img src="https://img.shields.io/badge/Build%20with-Gemini-8E75B2?style=for-the-badge&logo=googlegemini&logoColor=white" alt="Build with Gemini" />
+</p>
+<p align="center">
+  <!-- AI and models -->
+  <img src="https://img.shields.io/badge/Gemini-3.6%20Flash-8E75B2?style=for-the-badge&logo=googlegemini&logoColor=white" alt="Gemini" />
+  <img src="https://img.shields.io/badge/CrewAI-1.15-FF5A50?style=for-the-badge" alt="CrewAI" />
+  <img src="https://img.shields.io/badge/ONNX%20Runtime-CPU-005CED?style=for-the-badge&logo=onnx&logoColor=white" alt="ONNX Runtime" />
+  <img src="https://img.shields.io/badge/Whisper-faster--whisper-412991?style=for-the-badge&logo=openai&logoColor=white" alt="Whisper" />
+</p>
+<p align="center">
+  <!-- Backend -->
+  <img src="https://img.shields.io/badge/Python-3.12-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python" />
+  <img src="https://img.shields.io/badge/FastAPI-API-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="FastAPI" />
+  <img src="https://img.shields.io/badge/Pydantic-v2-E92063?style=for-the-badge&logo=pydantic&logoColor=white" alt="Pydantic" />
+  <img src="https://img.shields.io/badge/FFmpeg-media-007808?style=for-the-badge&logo=ffmpeg&logoColor=white" alt="FFmpeg" />
+  <img src="https://img.shields.io/badge/PostgreSQL-optional-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL" />
+</p>
+<p align="center">
+  <!-- Frontend -->
+  <img src="https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React" />
+  <img src="https://img.shields.io/badge/Vite-8-646CFF?style=for-the-badge&logo=vite&logoColor=white" alt="Vite" />
+  <img src="https://img.shields.io/badge/TypeScript-6-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/Tailwind%20CSS-4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white" alt="Tailwind CSS" />
+</p>
+<p align="center">
+  <!-- Deployment -->
+  <img src="https://img.shields.io/badge/Docker-single%20container-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker" />
+  <img src="https://img.shields.io/badge/Railway-deployed-0B0D0E?style=for-the-badge&logo=railway&logoColor=white" alt="Railway" />
+</p>
 
 **Live:** https://trustlens-ai-production-5b04.up.railway.app
 
