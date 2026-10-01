@@ -1,3 +1,5 @@
+import Button from './Button'
+
 interface Props {
   busy: boolean
   disabled?: boolean
@@ -7,12 +9,7 @@ interface Props {
 export default function AnalyzeButton({ busy, disabled, onClick }: Props) {
   return (
     <div className="flex flex-col items-stretch gap-2 sm:items-start">
-      <button
-        type="button"
-        onClick={onClick}
-        disabled={busy || disabled}
-        className="inline-flex items-center justify-center gap-2 rounded-xl bg-accent px-6 py-3 text-sm font-semibold text-bg transition hover:brightness-110 disabled:cursor-not-allowed disabled:bg-surface-2 disabled:text-muted"
-      >
+      <Button variant="primary" busy={busy} onClick={onClick} disabled={busy || disabled}>
         {busy ? (
           <>
             <svg viewBox="0 0 24 24" fill="none" className="size-4 animate-spin" aria-hidden="true">
@@ -23,14 +20,14 @@ export default function AnalyzeButton({ busy, disabled, onClick }: Props) {
           </>
         ) : (
           <>
-            <svg viewBox="0 0 24 24" fill="none" className="size-4" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" className="btn-icon size-4" aria-hidden="true">
               <circle cx="11" cy="11" r="6.500" stroke="currentColor" strokeWidth="2" />
               <path d="m16 16 4.500 4.500" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
             </svg>
             Analyze with Gemini
           </>
         )}
-      </button>
+      </Button>
       <p className="text-xs text-muted">Your file or text is sent to Gemini for analysis. Files are not kept; the report may be stored.</p>
     </div>
   )

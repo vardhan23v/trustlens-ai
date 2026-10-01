@@ -24,11 +24,7 @@ export default function DemoChips({ demos, activeId, onPick, disabled }: Props) 
             onClick={() => onPick(d)}
             title="Cached demo — Gemini output pre-recorded"
             aria-pressed={active}
-            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
-              active
-                ? 'border-accent bg-accent/15 text-accent'
-                : 'border-border bg-surface-2 text-text hover:border-accent-soft hover:text-accent'
-            }`}
+            className="btn btn-chip"
           >
             <span aria-hidden="true" className="text-muted">
               {TYPE_GLYPH[d.input_type] ?? '•'}

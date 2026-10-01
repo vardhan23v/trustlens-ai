@@ -23,6 +23,15 @@ export function mediaTypeOf(f: File): MediaType | null {
   return null
 }
 
+/** Same check for a chosen, dropped or pasted file. Returns an error message, or null when acceptable. */
+export function validateFile(f: File): string | null {
+  const kind = mediaTypeOf(f)
+  if (!kind) return 'Unsupported file. Upload an image (JPG, PNG, WebP), a video (MP4, MOV, WebM) or audio (MP3, WAV, M4A, OGG).'
+  const cap = kind === 'image' ? IMAGE_MB : MEDIA_MB
+  if (f.size > cap * 1024 * 1024) return `This ${kind} is ${fmtBytes(f.size)}. The limit is ${cap} MB.`
+  return null
+}
+
 const KINDS: { kind: MediaType; label: string; formats: string }[] = [
   { kind: 'image', label: 'Image', formats: `JPG, PNG, WebP · ${IMAGE_MB} MB` },
   { kind: 'video', label: 'Video', formats: `MP4, MOV, WebM · ${MEDIA_MB} MB` },
@@ -61,14 +70,9 @@ export default function UploadZone({ file, previewUrl, onFile, disabled }: Props
 
   const accept = (f: File | undefined) => {
     if (!f) return
-    const kind = mediaTypeOf(f)
-    if (!kind) {
-      setError('Unsupported file. Upload an image (JPG, PNG, WebP), a video (MP4, MOV, WebM) or audio (MP3, WAV, M4A, OGG).')
-      return
-    }
-    const cap = kind === 'image' ? IMAGE_MB : MEDIA_MB
-    if (f.size > cap * 1024 * 1024) {
-      setError(`This ${kind} is ${fmtBytes(f.size)}. The limit is ${cap} MB.`)
+    const problem = validateFile(f)
+    if (problem) {
+      setError(problem)
       return
     }
     setError(null)
@@ -140,10 +144,11 @@ export default function UploadZone({ file, previewUrl, onFile, disabled }: Props
           <>
             <p className="text-sm text-text">
               Drop a file here, or <span className="text-accent underline underline-offset-2">browse</span>
+              <span className="mt-1 block text-xs text-muted">You can also paste a copied image (Ctrl / ⌘ + V) or drop a file anywhere on the page.</span>
             </p>
             <ul className="grid w-full max-w-xl gap-2 sm:grid-cols-3">
               {KINDS.map((k) => (
-                <li key={k.kind} className="rounded-lg border border-border bg-surface-2/60 px-3 py-2.5">
+                <li key={k.kind} className="rounded-lg border border-border bg-surface-2/60 px-3 py-2.5 transition-[border-color,transform] duration-200 hover:-translate-y-0.5 hover:border-accent">
                   <p className="flex items-center justify-center gap-2 text-sm font-medium text-text">
                     <span className="text-accent">
                       <KindIcon kind={k.kind} />

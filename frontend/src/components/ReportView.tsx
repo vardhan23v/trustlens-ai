@@ -12,6 +12,9 @@ import ExtractedPanel from './ExtractedPanel'
 import ModeBanner from './ModeBanner'
 import PdfButton from './PdfButton'
 import PipelinePanel from './PipelinePanel'
+import SectionNav from './SectionNav'
+import type { Section } from './SectionNav'
+import { useCountUp } from '../hooks/useCountUp'
 import RecommendationBox from './RecommendationBox'
 import RiskBadge from './RiskBadge'
 import SignalCard from './SignalCard'
@@ -45,11 +48,25 @@ export default function ReportView({ report, originalUrl }: Props) {
   const ela = report.ela
   const changeFactors = (report.change_factors ?? []).length > 0 ? report.change_factors : (report.confidence_boosters ?? [])
   const news = report.mode === 'news_claim'
+  const shownSignals = useCountUp(signals.length)
+  const hasPipeline =
+    (report.stages ?? []).length > 0 || (report.specialist_models ?? []).length > 0 || Object.keys(report.media_metadata ?? {}).length > 0
+  const sections: Section[] = [
+    { id: 'rep-assessment', label: 'Assessment' },
+    { id: 'rep-summary', label: 'Summary' },
+    ...(news && ((report.claims ?? []).length > 0 || (report.evidence ?? []).length > 0) ? [{ id: 'rep-evidence', label: 'Evidence' }] : []),
+    { id: 'rep-findings', label: 'Findings' },
+    { id: 'rep-score', label: 'Score' },
+    ...(hasPipeline ? [{ id: 'rep-pipeline', label: 'Pipeline' }] : []),
+  ]
 
   return (
     <section aria-label="Trust Report" className="space-y-6">
-      <AssessmentPanel report={report} />
-      <div className="card animate-fade-up grid gap-6 p-4 sm:p-6 md:grid-cols-[auto_1fr] md:gap-8">
+      <SectionNav sections={sections} />
+      <div id="rep-assessment" className="scroll-mt-32">
+        <AssessmentPanel report={report} />
+      </div>
+      <div id="rep-summary" className="card card-glow animate-fade-up grid scroll-mt-32 gap-6 p-4 sm:p-6 md:grid-cols-[auto_1fr] md:gap-8">
         <div className="flex justify-center md:items-start">
           <div className="max-w-[15rem] text-center">
             {report.mode && report.gemini_error && (report.signals ?? []).length === 0 ? (
@@ -122,15 +139,15 @@ export default function ReportView({ report, originalUrl }: Props) {
       )}
 
       {news && (
-        <>
+        <div id="rep-evidence" className="scroll-mt-32 space-y-6">
           <ClaimBreakdown claims={report.claims ?? []} timeline={report.timeline ?? []} article={report.article ?? null} />
           <EvidenceList evidence={report.evidence ?? []} />
-        </>
+        </div>
       )}
 
-      <div className={signals.length === 0 && report.verdict ? 'hidden' : undefined}>
+      <div id="rep-findings" className={`scroll-mt-32 ${signals.length === 0 && report.verdict ? 'hidden' : ''}`}>
         <h2 className="section-title mb-3">
-          {news ? 'Media and content findings' : 'Synthetic-media findings'} <span className="font-mono text-text">({signals.length})</span>
+          {news ? 'Media and content findings' : 'Synthetic-media findings'} <span className="font-mono text-text">({shownSignals})</span>
         </h2>
         {signals.length > 0 ? (
           <div className="grid gap-3 lg:grid-cols-2">
@@ -153,9 +170,13 @@ export default function ReportView({ report, originalUrl }: Props) {
         </div>
       )}
 
-      <DeductionTable signals={signals} breakdown={report.score_breakdown ?? []} score={report.trust_score} />
+      <div id="rep-score" className="scroll-mt-32">
+        <DeductionTable signals={signals} breakdown={report.score_breakdown ?? []} score={report.trust_score} />
+      </div>
 
-      <PipelinePanel report={report} />
+      <div id="rep-pipeline" className="scroll-mt-32">
+        <PipelinePanel report={report} />
+      </div>
 
       {report.extracted && <ExtractedPanel extracted={report.extracted} />}
 

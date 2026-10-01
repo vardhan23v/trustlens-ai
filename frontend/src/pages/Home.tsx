@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Backdrop from '../components/Backdrop'
+import CursorFx from '../components/CursorFx'
+import { DropOverlay, ScrollChrome, ShortcutsHelp, Toaster, toast } from '../components/PageChrome'
 import ErrorCard from '../components/ErrorCard'
 import Header from '../components/Header'
 import Hero from '../components/Hero'
 import InputPanel from '../components/InputPanel'
 import ReportView from '../components/ReportView'
 import StageProgress from '../components/StageProgress'
-import { mediaTypeOf } from '../components/UploadZone'
+import { mediaTypeOf, validateFile } from '../components/UploadZone'
 import { analyze, getDemos, getHealth } from '../services/api'
 import type { Demo, Health, MediaType, Mode, TrustReport } from '../types/report'
 import { useRevealAll } from '../hooks/useReveal'
@@ -135,6 +137,96 @@ export default function Home() {
   const hasText = text.trim().length > 0
   const canSubmit = !!mode && (!!file || !!demoId || hasText)
 
+  // The whole page takes the colour of the selected mode (index.css reads html[data-mode]).
+  useEffect(() => {
+    const root = document.documentElement
+    if (mode) root.dataset.mode = mode
+    else delete root.dataset.mode
+  }, [mode])
+
+  // A file dropped anywhere on the page, or an image pasted from the clipboard, goes through the same
+  // validation as the upload zone.
+  const [dragging, setDragging] = useState(false)
+  const [helpOpen, setHelpOpen] = useState(false)
+  const live = useRef({ busy, canSubmit, onSubmit: () => {} })
+  const takeFile = useCallback((f: File | undefined, how: string) => {
+    if (!f) return
+    const problem = validateFile(f)
+    if (problem) {
+      toast(problem)
+      return
+    }
+    setFile(f)
+    setDemoId(null)
+    setText('')
+    const url = URL.createObjectURL(f)
+    objectUrls.current.push(url)
+    setPreviewUrl(url)
+    toast(`${how}: ${f.name || 'image'}`)
+    inputRef.current?.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' })
+  }, [])
+
+  useEffect(() => {
+    let depth = 0
+    const hasFiles = (e: DragEvent) => Array.from(e.dataTransfer?.types ?? []).includes('Files')
+    const enter = (e: DragEvent) => {
+      if (!hasFiles(e)) return
+      depth += 1
+      setDragging(true)
+    }
+    const leave = (e: DragEvent) => {
+      if (!hasFiles(e)) return
+      depth = Math.max(0, depth - 1)
+      if (depth === 0) setDragging(false)
+    }
+    const over = (e: DragEvent) => {
+      if (hasFiles(e)) e.preventDefault()
+    }
+    const drop = (e: DragEvent) => {
+      if (!hasFiles(e)) return
+      e.preventDefault()
+      depth = 0
+      setDragging(false)
+      if (!live.current.busy) takeFile(e.dataTransfer?.files?.[0], 'Dropped')
+    }
+    const paste = (e: ClipboardEvent) => {
+      const f = Array.from(e.clipboardData?.files ?? [])[0]
+      if (!f || live.current.busy) return // plain text pastes go to the text box as usual
+      e.preventDefault()
+      takeFile(f, 'Pasted')
+    }
+    const key = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null
+      const typing = !!t && (t.tagName === 'TEXTAREA' || t.tagName === 'INPUT' || t.isContentEditable)
+      if (e.metaKey || e.ctrlKey || e.altKey) return
+      if (e.key === 'Escape') {
+        setHelpOpen(false)
+        if (!live.current.busy && !typing) setMode(null)
+        else if (typing) t?.blur()
+        return
+      }
+      if (typing || live.current.busy) return
+      if (e.key === '1') setMode('news_claim')
+      else if (e.key === '2') setMode('ai_generated')
+      else if (e.key === '?') setHelpOpen((o) => !o)
+      else if (e.key === 'Enter' && live.current.canSubmit && t?.tagName !== 'BUTTON') live.current.onSubmit()
+    }
+    window.addEventListener('dragenter', enter)
+    window.addEventListener('dragleave', leave)
+    window.addEventListener('dragover', over)
+    window.addEventListener('drop', drop)
+    window.addEventListener('paste', paste)
+    window.addEventListener('keydown', key)
+    return () => {
+      window.removeEventListener('dragenter', enter)
+      window.removeEventListener('dragleave', leave)
+      window.removeEventListener('dragover', over)
+      window.removeEventListener('drop', drop)
+      window.removeEventListener('paste', paste)
+      window.removeEventListener('keydown', key)
+    }
+  }, [takeFile])
+
   const onSubmit = () => {
     if (busy || !mode || !canSubmit) return
     if (!file && !demoId) {
@@ -145,9 +237,16 @@ export default function Home() {
     void run({ mode, file, demoId, mediaType, imageUrl: previewUrl })
   }
 
+  live.current = { busy, canSubmit, onSubmit }
+
   return (
     <div className="mx-auto min-h-screen max-w-6xl overflow-x-clip px-4 pb-16">
       <Backdrop />
+      <CursorFx />
+      <ScrollChrome />
+      <Toaster />
+      <DropOverlay show={dragging && !busy} />
+      <ShortcutsHelp open={helpOpen} onToggle={() => setHelpOpen((o) => !o)} />
       <Header />
       <Hero
         onStart={() =>

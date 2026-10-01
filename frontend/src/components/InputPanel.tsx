@@ -1,5 +1,6 @@
 import type { Demo, Health, Mode } from '../types/report'
 import AnalyzeButton from './AnalyzeButton'
+import Button from './Button'
 import DemoChips from './DemoChips'
 import ModeCards, { MODE_COPY } from './ModeCards'
 import UploadZone from './UploadZone'
@@ -39,7 +40,7 @@ export default function InputPanel(props: Props) {
   const demos = props.demos.filter((d) => d.mode === mode)
 
   return (
-    <section aria-label="Media to analyze" className="card p-4 sm:p-6">
+    <section aria-label="Media to analyze" className="card card-glow p-4 sm:p-6">
       {!mode ? (
         <ModeCards value={mode} onChange={props.onModeChange} disabled={busy} />
       ) : (
@@ -48,16 +49,14 @@ export default function InputPanel(props: Props) {
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-accent/60 bg-accent/10 px-4 py-3">
             <div className="min-w-0">
               <p className="text-[11px] font-medium uppercase tracking-wider text-muted">Mode</p>
-              <p className="text-base font-bold tracking-wide text-accent">{MODE_COPY[mode].title}</p>
+              <p className="mode-gradient-text text-lg font-bold tracking-wide">{MODE_COPY[mode].title}</p>
             </div>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => props.onModeChange(null)}
-              className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-text transition-colors hover:border-accent-soft hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
-            >
+            <Button variant="ghost" disabled={busy} onClick={() => props.onModeChange(null)} style={{ ['--icon-x' as string]: '-3px' }}>
+              <span aria-hidden="true" className="btn-icon">
+                ←
+              </span>
               Change mode
-            </button>
+            </Button>
           </div>
           <p className="text-sm text-text">{MODE_COPY[mode].upload}</p>
           <UploadZone file={props.file} previewUrl={props.previewUrl} onFile={props.onFile} disabled={busy} />

@@ -1,5 +1,6 @@
 import type { Assessment, TrustReport } from '../types/report'
 import { MODE_COPY } from './ModeCards'
+import { toast } from './PageChrome'
 import { STATE_TONE } from './RiskBadge'
 import type { Tone } from './RiskBadge'
 
@@ -33,9 +34,9 @@ export default function AssessmentPanel({ report }: { report: TrustReport }) {
   if (axes.length === 0 || !report.mode) return null
   const news = report.mode === 'news_claim'
   return (
-    <div className="card animate-fade-up p-4 sm:p-6">
+    <div className="card card-glow animate-fade-up p-4 sm:p-6">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <h2 className="text-lg font-semibold text-text">{MODE_COPY[report.mode].report}</h2>
+        <h2 className="mode-gradient-text text-xl font-bold">{MODE_COPY[report.mode].report}</h2>
         <p className="text-xs text-muted">
           Mode: <span className="font-medium text-accent">{MODE_COPY[report.mode].title}</span>
           {report.media_type && (
@@ -47,7 +48,20 @@ export default function AssessmentPanel({ report }: { report: TrustReport }) {
           {report.report_id && (
             <>
               {' '}
-              · <span className="font-mono">{report.report_id}</span>
+              ·{' '}
+              <button
+                type="button"
+                title="Copy report ID"
+                className="rounded font-mono text-text underline decoration-dotted underline-offset-2 transition-colors hover:text-accent"
+                onClick={() =>
+                  navigator.clipboard
+                    .writeText(report.report_id)
+                    .then(() => toast('Report ID copied'))
+                    .catch(() => toast('Could not copy'))
+                }
+              >
+                {report.report_id}
+              </button>
             </>
           )}
         </p>

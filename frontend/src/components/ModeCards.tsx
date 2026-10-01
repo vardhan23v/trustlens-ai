@@ -71,7 +71,8 @@ export default function ModeCards({ value, onChange, disabled }: Props) {
                 role="radio"
                 aria-checked={selected}
                 onClick={() => onChange(id)}
-                className={`group relative h-full w-full rounded-2xl border p-5 text-left transition-[border-color,background-color,box-shadow] duration-200 disabled:cursor-not-allowed disabled:opacity-60 sm:p-6 ${
+                data-mode-card={id}
+                className={`mode-card group relative h-full w-full rounded-2xl border p-5 text-left transition-[border-color,background-color,box-shadow] duration-200 disabled:cursor-not-allowed disabled:opacity-60 sm:p-6 ${
                   selected
                     ? 'border-accent bg-accent/10 shadow-[inset_0_0_0_1px_var(--color-accent),0_20px_44px_-24px_var(--color-accent)]'
                     : 'border-border bg-surface-2/60 hover:border-accent-soft'
@@ -86,7 +87,7 @@ export default function ModeCards({ value, onChange, disabled }: Props) {
                     <Icon mode={id} />
                   </span>
                   <div className="min-w-0">
-                    <p className="text-lg font-bold tracking-wide text-text">{c.title}</p>
+                    <p className="mode-card-title text-lg font-bold tracking-wide">{c.title}</p>
                     <p className={`mt-0.5 text-xs font-medium ${selected ? 'text-accent' : 'text-muted'}`}>{c.question}</p>
                   </div>
                 </div>
@@ -98,6 +99,15 @@ export default function ModeCards({ value, onChange, disabled }: Props) {
                     </li>
                   ))}
                 </ul>
+                <p className="mt-4 flex items-center gap-2 text-xs font-medium text-muted transition-colors group-hover:text-text">
+                  Choose
+                  <span aria-hidden="true" className="transition-transform duration-300 group-hover:translate-x-1.5">
+                    →
+                  </span>
+                  <kbd className="ml-auto rounded-md border border-border bg-bg/60 px-1.5 py-0.5 font-mono text-[10px]">
+                    {id === 'news_claim' ? '1' : '2'}
+                  </kbd>
+                </p>
               </button>
             </Tilt>
           )

@@ -44,6 +44,10 @@ export default function StageProgress({ mode, mediaType }: Props) {
         {mediaType === 'image' || mediaType === 'text' ? 'This usually takes 10–40 seconds.' : 'Video and audio can take up to two minutes.'} The
         report lists which of these stages actually ran.
       </p>
+      <div className="mt-4 space-y-2" aria-hidden="true">
+        <div className="shimmer h-3 w-3/4" />
+        <div className="shimmer h-3 w-1/2" />
+      </div>
       <ol className="mt-4 grid gap-2 sm:grid-cols-2">
         {plan(mode, mediaType).map((label, i) => (
           <li key={label} className="flex items-center gap-3 rounded-lg border border-border bg-surface-2/50 px-3 py-2 text-sm text-muted">

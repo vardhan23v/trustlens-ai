@@ -1,3 +1,4 @@
+import Button from './Button'
 import { useRef } from 'react'
 import { prefersReducedMotion } from '../utils/format'
 
@@ -45,16 +46,12 @@ export default function Hero({ onStart }: Props) {
           ))}
         </ul>
         <div className="hero-in mt-8 flex flex-wrap items-center gap-4 [--d:320ms]">
-          <button
-            type="button"
-            onClick={onStart}
-            className="group inline-flex items-center gap-2 rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-bg shadow-[0_0_32px_-6px_var(--color-accent)] transition-transform hover:-translate-y-0.5"
-          >
+          <Button variant="primary" onClick={onStart} style={{ ['--icon-x' as string]: '0px', ['--icon-y' as string]: '3px' }}>
             Start analysis
-            <span aria-hidden="true" className="transition-transform group-hover:translate-y-0.5">
+            <span aria-hidden="true" className="btn-icon">
               ↓
             </span>
-          </button>
+          </Button>
           <p className="text-sm text-muted">Don’t just tell users what to trust. Show them why.</p>
         </div>
       </div>
