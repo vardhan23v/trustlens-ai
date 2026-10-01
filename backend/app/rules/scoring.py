@@ -10,6 +10,7 @@ PENALTIES = {
     "exif_time_mismatch": 5, "debunked_by_source": 40,
     "ai_generation_indicator": 20, "manipulation_indicator": 20, "visual_inconsistency": 10,
     "av_inconsistency": 20, "audio_anomaly": 15,
+    "scam_pattern": 35,
 }
 SEVERITY_MULT = {"high": 1.0, "medium": 0.6, "low": 0.3}
 CATEGORY_OF = {

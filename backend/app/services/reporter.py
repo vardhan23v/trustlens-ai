@@ -10,6 +10,7 @@ from app.models.llm_outputs import SIGNAL_KEYS, Extracted, LLMSignal
 from app.models.report import (Assessment, AxisAssessment, CategoryBreakdown, ClaimStatus, Evidence, Signal,
                                TimelineEvent, TrustReport)
 from app.services.news import retrieval
+from app.rules import text_rules
 from app.rules.scoring import CATEGORY_CAPS, SEVERITY_RANK, band, category_of, penalty_for
 
 FORENSIC_KEYS = {"editing_software_exif", "exif_time_mismatch", "ela_anomaly"}  # only Python can measure these
@@ -382,6 +383,10 @@ def build(state) -> TrustReport:
             if s.key in ("urgency", "action_pressure", "kyc_threat", "threat") and "injection" not in s.title.lower():
                 s.severity = "low"
         notes.append("Every link is on the claimed organisation's own domain; pressure signals were capped at low.")
+
+    combo = text_rules.pattern_signal(signals)
+    if combo:
+        signals.append(combo)
 
     extracted: Extracted = state.extracted
     evidence: list[Evidence] = []

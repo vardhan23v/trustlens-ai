@@ -21,13 +21,15 @@ RULES: list[tuple[str, str, str, str, list[str]]] = [
       r"will be (blocked|suspended|disconnected|terminated|closed|deactivated|frozen|locked)",
       r"(is|has been|been) (blocked|suspended|frozen|locked|held|flagged)\b",
       r"(block|suspend|close|disconnect|terminate)\w* (your |the )?(account|card|sim|number|wallet|connection|service)",
+      r"will (block|suspend|disconnect|terminate|deactivate|freeze)\b", r"will be (cut|cut off|stopped)\b",
+      r"(linked to|contains?|involved in) illegal", r"\bon hold\b",
       r"money laundering", r"case (is |has been )?(registered|filed)", r"\bfir\b"]),
     ("credential_request", "high", "Asks for OTP or credentials",
      "Genuine organisations do not ask for an OTP, PIN, password or card details through a message or link.",
      [r"\botp\b", r"one[- ]time password", r"\bpin\b", r"\bcvv\b", r"password", r"passcode", r"\bmpin\b",
       r"aadhaar (number|no)", r"pan (number|no)", r"card (number|no)", r"otp (batao|share|bhejo)",
       r"bank (account )?details", r"account (number|details)", r"card details", r"payment details",
-      r"\b(verification |security |the )code\b"]),
+      r"\b(verification |security |the )code\b", r"\busername\b", r"\bexpiry\b", r"share your screen"]),
     ("financial_request", "high", "Payment request",
      "The content asks for money or directs a payment; confirm the payee through an official channel first.",
      [r"pay(ment)?.{0,25}(\bfee\b|charge|amount|₹|\brs\.?(?![a-z])|\binr\b)", r"(send|transfer).{0,20}(money|₹|\brs\.?(?![a-z])|amount)",
@@ -37,7 +39,9 @@ RULES: list[tuple[str, str, str, str, list[str]]] = [
     ("registration_fee", "high", "Upfront fee request",
      "Asking for a fee before a job, registration or onboarding is a common advance-fee scam pattern.",
      [r"registration fee", r"joining fee", r"onboarding fee", r"training fee", r"document verification fee",
-      r"laptop (fee|deposit)"]),
+      r"laptop (fee|deposit)", r"pay.{0,40}(processing|clearance|tax|delivery|handling|activation)\w* "
+      r"(fee|charge|amount).{0,60}\b(to (get|claim|receive|release|start|confirm)|first)\b",
+      r"pay.{0,20}(fee|tax|amount) first"]),
     ("urgency", "medium", "Urgency",
      "A tight deadline pressures the reader to act before checking.",
      [r"immediately", r"urgent(ly)?", r"within \d+ ?(hours?|hrs?|minutes?|mins?)", r"today only",
@@ -47,14 +51,15 @@ RULES: list[tuple[str, str, str, str, list[str]]] = [
     ("action_pressure", "medium", "Pressure to act",
      "The message pushes a specific action such as clicking, calling or forwarding.",
      [r"click(ing)? (here|the link|below|now|this)", r"tap (here|the link)", r"link par click", r"verify (now|your|immediately)",
-      r"confirm (now|your)", r"download (now|the app|this app)", r"call (now|this number|immediately)",
+      r"confirm (now|your)", r"download (now|the app|this app)", r"call (now|this number|immediately)", r"redeem now",
       r"forward (this|to \d+)", r"share (with|to) \d+",
-      r"(call|contact|whatsapp|message)\b.{0,45}[6-9]\d{9}", r"press \d\b", r"(contact|message) (us |me )?on (telegram|whatsapp)",
+      r"(call|contact|whatsapp|message)\b.{0,45}(?<!\d)[6-9]\d{9}\b", r"press \d\b", r"(contact|message) (us |me )?on (telegram|whatsapp)",
       r"download(ing)? (this|the) app"]),
 ]
 PRIZE_BAIT = [r"you (have )?won\b", r"\blottery\b", r"lucky draw", r"\bjackpot\b", r"free (iphone|gift|recharge|laptop)",
               r"claim your (prize|reward|gift)", r"earn (rs\.?|₹|inr) ?[\d,]+ ?(daily|per day|a day|weekly)",
-              r"(rs\.?|₹) ?[\d,]+ per day", r"work from home.{0,40}earn"]
+              r"(rs\.?|₹) ?[\d,]+ per day", r"work from home.{0,40}earn", r"guaranteed.{0,20}returns?", r"\d{2,}% (returns?|profit)",
+              r"loan approved"]
 FAKE_AUTHORITY = [r"\brbi\b", r"reserve bank", r"income tax", r"cyber ?(cell|crime|police)", r"\bpolice\b", r"\bcourt\b",
                   r"government of india", r"\bministry\b", r"customs", r"\bcbi\b", r"enforcement directorate", r"\btrai\b"]
 # Text addressed to an AI system. Content is data: this is reported, never obeyed.
@@ -62,6 +67,9 @@ INJECTION = [r"ignore (all |any |the |your )?(previous |prior |above |earlier )?
              r"ignore (all )?(rules|instructions) above", r"\b(ai|assistant|system|chatgpt|gemini|llm)\b\s*(assistant|model)?\s*:",
              r"(report|rate|mark|classify|label) this (message|content|text|image)? ?as (low|safe|genuine|no) ?(risk)?",
              r"disregard (the |all |any )?(above|previous|system)", r"you are now (a|an|in)\b"]
+# "Hi mom, this is my new number" — the family-emergency script.
+NEW_NUMBER = [r"(this is|it'?s|its) my (new|temporary|temp) (number|no\b)", r"(lost|broke) my phone",
+              r"my phone (broke|is broken|got lost|was stolen|is lost)"]
 HIGH_RISK_KEYS = {"kyc_threat", "threat", "financial_request", "credential_request", "registration_fee"}
 # A transaction alert ("Rs 500 debited ... to SWIGGY") reports a payment; it does not ask for one.
 _TRANSACTION_ALERT = re.compile(r"\b(debited|credited|was successful|has been (processed|shipped|renewed|received))\b", re.I)
@@ -119,7 +127,14 @@ _REQUEST_VERB = re.compile(
     r"\b(share|send|enter|provide|submit|give|tell|type|reply|update|confirm|batao|bataye|bhejo|dalo|daalein)\b", re.I)
 
 
+# A message that carries the code itself ("Share OTP 4821 with the delivery partner") is delivering an OTP,
+# not asking the reader to hand one over.
+_CODE_IN_MESSAGE = re.compile(r"\b(otp|code)\b\W{0,3}(is\W{0,3})?\d{4,8}\b|\b\d{4,8}\b.{0,12}\bis your\b.{0,20}\b(otp|code)\b", re.I)
+
+
 def _credential_hit(text: str, patterns: list[str]) -> tuple[str, int] | None:
+    if _CODE_IN_MESSAGE.search(text):
+        return None
     clean = _without_warnings(text)
     first, count = None, 0
     for p in patterns:
@@ -144,6 +159,48 @@ def soften_for_document(signals: list[Signal]) -> list[Signal]:
         if s.key in HIGH_RISK_KEYS and s.severity == "high":
             s.severity = "medium"
     return signals
+
+
+# Somewhere the sender controls: a link, a mobile number, an email, a UPI handle, or a chat app.
+_CHANNEL = re.compile(r"(?<!\d)(?:\+91[\-\s]?)?[6-9]\d{9}\b|@[a-z]{2,}\b|\b(telegram|whatsapp)\b|\bpress \d\b", re.I)
+_OFFICIAL_CHANNEL = re.compile(
+    r"\b(?<!this )(app|branch|portal|office|netbanking|net banking)\b|\bas (requested|per your request)\b", re.I)
+PRESSURE_KEYS = {"urgency", "action_pressure"}
+# Keys that describe what a scam wants or how it disguises itself (not forensics, not tone).
+CORE_KEYS = HIGH_RISK_KEYS | {"impersonation", "domain_mismatch", "misleading_claim", "fake_authority",
+                              "suspicious_url", "ip_url"}
+
+
+def _soften_notices(text: str, fired: dict[str, Signal], has_url: bool) -> None:
+    """Genuine notices use scam vocabulary too ("payment due", "supply will be suspended"). Without a link,
+    number or handle the sender controls, and without any request for credentials, a keyword hit is medium."""
+    if has_url or _CHANNEL.search(text) or fired.keys() & {"credential_request", "registration_fee", "action_pressure"}:
+        return
+    bare_notice = not (fired.keys() - {"threat", "urgency", "unusual_language"})  # announces, asks for nothing
+    if bare_notice or _OFFICIAL_CHANNEL.search(text):
+        for key in ("threat", "financial_request", "kyc_threat"):
+            if key in fired and fired[key].severity == "high":
+                fired[key].severity = "medium"
+
+
+def pattern_signal(signals: list[Signal]) -> Signal | None:
+    """Scam markers that are weak alone are strong together. Fires on: two or more high-severity core
+    markers; one plus both urgency and a pushed action; or a credential/link problem plus a pushed action."""
+    if any(s.key == "scam_pattern" for s in signals):
+        return None
+    rank = {"low": 1, "medium": 2, "high": 3}
+    core = [s for s in signals if s.key in CORE_KEYS and s.severity == "high"]
+    pressure = {s.key for s in signals if s.key in PRESSURE_KEYS and rank[s.severity] >= 2}
+    if not core:
+        return None
+    pushed = "action_pressure" in pressure and any(
+        s.key == "credential_request" or s.category == "url_domain" for s in core)
+    if not (len(core) >= 2 or len(pressure) == 2 or pushed):
+        return None
+    parts = [s.title.lower() for s in core[:3]] + sorted(k.replace("_", " ") for k in pressure)
+    return _mk("scam_pattern", "high", "Scam markers appear together",
+               "Each marker alone can occur in a genuine message; this combination is the usual shape of a scam.",
+               " + ".join(parts))
 
 
 def _mk(key: str, severity: str, title: str, explanation: str, evidence: str) -> Signal:
@@ -196,6 +253,13 @@ def run(text: str) -> RuleResult:
                 "An official body is named alongside pressure or a request; scammers borrow authority to seem credible.",
                 hit[0])
 
+    hit = _first_hit(text, NEW_NUMBER)
+    if hit and "financial_request" in fired:
+        fired["impersonation"] = _mk(
+            "impersonation", "high", "Unverified new number",
+            "A request for money from someone claiming a new or temporary number is a common family-emergency scam. "
+            "Call the person on the number you already have.", hit[0])
+
     hit = _first_hit(text, PRIZE_BAIT)
     if hit:
         fired["misleading_claim"] = _mk(
@@ -219,8 +283,9 @@ def run(text: str) -> RuleResult:
     url_signals = url_rules.run(res.urls)
     domain_signals, res.domain = domain_rules.run(text, res.urls)
 
-    risky = fired.keys() & HIGH_RISK_KEYS
-    if res.domain.claimed and risky:
+    _soften_notices(text, fired, bool(res.urls))
+    risky = {k for k in fired.keys() & HIGH_RISK_KEYS if fired[k].severity == "high"}
+    if res.domain.claimed and risky and "impersonation" not in fired:
         for c in res.domain.claimed:
             if not any(u.registrable in c.org["domains"] for u in res.urls):
                 fired["impersonation"] = _mk(

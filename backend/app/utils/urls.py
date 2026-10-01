@@ -22,7 +22,7 @@ BARE_RE = re.compile(
 )
 IP_RE = re.compile(rf"\b\d{{1,3}}(?:\.\d{{1,3}}){{3}}(?::\d+)?/{_STOP}*")
 EMAIL_RE = re.compile(r"[a-z0-9._%+-]+@[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,}", re.I)
-PHONE_RE = re.compile(r"(?:\+91[\-\s]?)?[6-9]\d{9}\b")
+PHONE_RE = re.compile(r"(?<!\d)(?:\+91[\-\s]?)?[6-9]\d{9}\b")
 
 
 @dataclass(frozen=True)
