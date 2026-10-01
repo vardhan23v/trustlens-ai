@@ -14,6 +14,7 @@ from app.config import settings
 from app.ml import registry
 from app.models.evidence import EvidenceSignal
 from app.models.report import Assessment, AxisAssessment, Evidence, Signal, SpecialistModel, Stage, TrustReport
+from app.services import specialists
 from app.services.news import retrieval
 
 LISTED = {"official", "wire", "established", "factcheck"}
@@ -53,15 +54,17 @@ def _signal_evidence(i: int, s: Signal, modality: str, gemini_model: str) -> Evi
 
 
 def _source_evidence(i: int, e: Evidence) -> EvidenceSignal:
+    limits = (["Stance was read from the source's headline by Gemini"
+               + (f"; the NLI model reads it as {e.nli_label} ({e.nli_score:.2f})" if e.nli_label else ", not checked by an NLI model")]
+              + ([e.stance_note] if e.stance_note else []) + ([] if e.published else ["Publication date unknown"]))
     return EvidenceSignal(
         signal_id=f"src-{i:02d}", category="claim_evidence", modality="external", source_type="EXTERNAL_SOURCE",
         finding=e.title or e.quote, direction=STANCE.get(e.stance, "UNKNOWN"),
         confidence="medium" if e.rating not in ("", "none") else "low",
         reliability=TIER_RELIABILITY.get(e.source_type, TIER_RELIABILITY["other"]),
-        relevance=f"atomic claim {e.claim_index}" if e.claim_index else "the claim as a whole", dimension="claim",
-        evidence=e.quote, source_reference=e.url,
-        limitations=["Stance was read from the source's headline by Gemini, not by an NLI model"]
-        + ([] if e.published else ["Publication date unknown"]))
+        relevance=(f"atomic claim {e.claim_index}" if e.claim_index else "the claim as a whole")
+        + (f"; semantic relevance {e.relevance:.2f}" if e.relevance is not None else ""), dimension="claim",
+        evidence=e.quote, source_reference=e.url, limitations=limits)
 
 
 def _independent(items: list[Evidence]) -> int:
@@ -78,9 +81,16 @@ def _claim_confidence(state_name: str, evidence: list[Evidence]) -> tuple[str, s
     n = _independent(side)
     top = any(e.source_type in ("official", "factcheck") for e in side)
     level = "high" if (top and n >= 2) else "medium" if (top or n >= 2) else "low"
-    return level, (f"{n} independent listed source(s) on this side"
-                   + (", including an official source or fact-checker" if top else "")
-                   + ". Copies from one site count once.")
+    basis = (f"{n} independent listed source(s) on this side" + (", including an official source or fact-checker" if top else "")
+             + ". Copies from one site count once.")
+    want = "entailment" if state_name == "SUPPORTED" else "contradiction"
+    checked = [e for e in side if e.nli_label]
+    if checked:  # the NLI model read these headlines itself
+        agree = sum(e.nli_label == want for e in checked)
+        basis += f" The NLI model independently reads {agree} of {len(checked)} of their headlines the same way."
+        if agree == 0 and level == "high":
+            level = "medium"  # no headline is corroborated by the second model
+    return level, basis
 
 
 def _media_confidence(axis: Assessment, signals: list[Signal], detectors: bool, gemini_ok: bool) -> tuple[str, str]:
@@ -91,8 +101,12 @@ def _media_confidence(axis: Assessment, signals: list[Signal], detectors: bool, 
         return "low", "Gemini's examination was unavailable; only deterministic checks ran."
     if axis.state == "MANIPULATED" and measured:
         return "medium", "A measured forensic finding supports this, alongside Gemini's observations."
-    if detectors:
-        return "medium", "A specialist detector and Gemini's observations were both available."
+    if detectors and axis.heading in ("Synthetic / manipulation assessment", "Media authenticity", "Visual authenticity"):
+        if axis.label == "Evidence conflicts":
+            return "low", "The pretrained detector and Gemini disagree, so neither reading is relied on."
+        if axis.state in ("LIKELY_SYNTHETIC", "LIKELY_AUTHENTIC"):
+            return "medium", "A pretrained detector and Gemini's observations point the same way. Detectors of this kind are wrong on a meaningful share of files."
+        return "low", "A pretrained detector ran but was undecided, and Gemini's observations are weak or mixed."
     if axis.heading == "AI-authorship assessment":
         return "low", "Rests on Gemini's reading of the style only. No AI-text detector ran, and such detection is unreliable."
     return "low", "Rests on Gemini's observations only: no specialist detector ran, and visual inspection is unreliable."
@@ -122,9 +136,11 @@ def _change_factors(report: TrustReport, state, claim_axis: AxisAssessment | Non
     elif kind == "audio":
         out.append("Uncompressed or original-quality audio: compression hides and mimics synthesis artefacts")
         out.append("A longer sample of the same speaker from a known-genuine recording for comparison")
-    if any(m.status == "MODEL_UNAVAILABLE" and m.slot in ("image_synthetic", "video_deepfake", "audio_spoof")
+    if any(m.status in ("MODEL_UNAVAILABLE", "FAILED") and m.slot in ("image_synthetic", "video_deepfake", "audio_spoof")
            for m in report.specialist_models):
-        out.append("A specialist synthetic-media detector run on the original file (none is installed on this deployment)")
+        out.append("A specialist synthetic-media detector run on the original file (one could not be run for this analysis)")
+    elif kind in ("video", "audio"):
+        out.append("A speech-synthesis detector validated on modern voice cloning (the one installed is weak evidence)")
     if report.mode == "news_claim" and claim_axis is not None:
         listed = [e for e in report.evidence if e.source_type in LISTED]
         if claim_axis.state == "NOT_ASSESSED":
@@ -151,11 +167,30 @@ def enrich(report: TrustReport, state) -> TrustReport:
     gemini_ok = not state.crew_error or bool(state.media or state.visual or state.news_image)
     report.mode, report.media_type, report.media_metadata = mode, kind, dict(state.media_meta)
     report.stages = [Stage(**st) for st in state.stages]
-    report.specialist_models = [SpecialistModel(**m) for m in registry.status(mode, kind)]
+    report.specialist_models = [SpecialistModel(**m) for m in registry.status(mode, kind, state.model_runs)]
     report.score_scope = SCORE_SCOPE[mode]
     report.notes = [n for n in report.notes if not n.startswith(("Specialist models:", "Semantic-retrieval and NLI"))]
-    detectors = any(m.status == "AVAILABLE" and m.slot in ("image_synthetic", "video_deepfake", "audio_spoof")
-                    for m in report.specialist_models)
+    out = state.model_out
+    # a detector result that may be used for this file (the image detector does not apply to screenshots / documents)
+    image_det = out.get("p_generated") is not None and specialists.detector_applies(state)
+    detectors = image_det or bool(out.get("frame_scores"))
+    if out.get("p_generated") is not None and not image_det:
+        report.notes.append(f"The AI-image detector scored this image {out['p_generated']:.2f}, but it was trained on "
+                            "photographs: for screenshots, documents and text graphics its score is shown and not used.")
+    # two independent readings of the same content: how far do they agree?
+    gem_text = (state.media.transcript if state.media else "")
+    agree = specialists.agreement(gem_text, out.get("asr_text", "")) if gem_text else None
+    if agree is not None:
+        report.notes.append(f"Transcript check: Gemini's transcript and the Whisper model's transcript agree {agree:.0%} word for word."
+                            + (" They differ noticeably, so quotes from the speech should be checked by ear." if agree < 0.6 else ""))
+    elif out.get("asr_text") and not state.media:
+        report.notes.append("The transcript shown comes from the Whisper model alone: Gemini's examination was unavailable.")
+    gem_ocr = (state.news_image.extracted_text if state.news_image else "")
+    agree_ocr = specialists.agreement(gem_ocr, out.get("ocr_text", "")) if gem_ocr else None
+    if agree_ocr is not None:
+        report.notes.append(f"Text check: Gemini's reading of the image and the OCR model's reading agree {agree_ocr:.0%} word for word.")
+    elif out.get("ocr_text") and not state.news_image and mode == "news_claim":
+        report.notes.append("The text shown was read by the OCR model alone: Gemini could not read the image.")
     if state.media_mime and not state.sampled_frames and kind == "video" and state.media:
         report.notes.append("Frame sampling was unavailable, so Gemini received the original video file.")
     if kind == "video" and state.sampled_frames:
@@ -223,11 +258,33 @@ def enrich(report: TrustReport, state) -> TrustReport:
             relevance="whether the media itself is authentic", dimension="media_authenticity", evidence=cue))
     ev += [_source_evidence(i, e) for i, e in enumerate(report.evidence, 1)]
     for m in report.specialist_models:
+        direction, conf, finding = "UNKNOWN", "", m.status
+        if m.status == "RAN":
+            finding, score = m.detail, None
+            if m.slot == "image_synthetic":
+                score = out.get("p_generated")
+            elif m.slot == "audio_spoof":
+                score = out.get("p_synthetic")
+            elif m.slot == "video_deepfake" and out.get("frame_scores"):
+                score = sum(p for _, p in out["frame_scores"]) / len(out["frame_scores"])
+            if score is not None:
+                direction = "CONTRADICTS" if score >= specialists.HIGH else "SUPPORTS" if score <= specialists.LOW else "NEUTRAL"
+                conf = "low" if m.slot == "audio_spoof" or direction == "NEUTRAL" else "medium"
+                if m.slot == "image_synthetic" and not image_det:
+                    direction, conf = "NEUTRAL", "low"
+            elif m.slot in ("asr", "ocr"):
+                direction, conf = "NEUTRAL", "medium"
+            elif m.slot in ("embedding", "nli"):
+                direction, conf = "NEUTRAL", "medium"  # per-source results are on each EXTERNAL_SOURCE item
         ev.append(EvidenceSignal(
             signal_id=f"model-{m.slot}", category="specialist_model", modality=kind, source_type="MODEL",
-            model=m.candidate, finding=m.status, direction="UNKNOWN", relevance=m.task,
-            dimension="claim" if m.slot in ("embedding", "nli") else "media_authenticity",
-            limitations=[m.detail] if m.detail else []))
+            model=m.candidate, finding=finding, direction=direction, confidence=conf,
+            reliability=("low: unproven for this kind of input" if m.slot == "audio_spoof" else
+                         "medium: pretrained model, not calibrated on this data") if m.status == "RAN" else "",
+            relevance=m.task, dimension="claim" if m.slot in ("embedding", "nli") else
+            "content_risk" if m.slot in ("asr", "ocr") else "media_authenticity",
+            evidence=m.detail if m.status == "RAN" else "",
+            limitations=m.limitations if m.status == "RAN" else ([m.detail] if m.detail else [])))
     report.evidence_signals = ev
     report.change_factors = _change_factors(report, state, claim_axis)
     if mode == "ai_generated":

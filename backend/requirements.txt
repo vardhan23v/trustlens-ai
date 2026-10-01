@@ -14,3 +14,10 @@ numpy
 reportlab==5.0.1
 imageio-ffmpeg
 psycopg[binary]
+# specialist models (CPU only, no PyTorch): app/ml
+onnxruntime
+rapidocr-onnxruntime
+faster-whisper
+fastembed
+tokenizers
+huggingface_hub

@@ -9,6 +9,7 @@ from urllib.parse import urlparse
 from app.models.llm_outputs import SIGNAL_KEYS, Extracted, LLMSignal
 from app.models.report import (Assessment, AxisAssessment, CategoryBreakdown, ClaimStatus, Evidence, Signal,
                                TimelineEvent, TrustReport)
+from app.services import specialists
 from app.services.news import retrieval
 from app.rules import text_rules
 from app.rules.scoring import CATEGORY_CAPS, SEVERITY_RANK, band, category_of, penalty_for
@@ -227,20 +228,46 @@ def _assess_image(state, signals: list[Signal], risk: str) -> tuple[Assessment, 
     manip = by_key.get("manipulation_indicator")
     strong = [s for s in signals if s.category in ("visual_analysis", "image_forensics") and s.severity != "low"]
     claimed = (visual.assessment.strip().lower() if visual else "")
+    # pretrained detector score (None when it did not run or does not apply to this kind of image)
+    p = getattr(state, "model_out", {}).get("p_generated") if synthetic else None
+    if p is not None and not specialists.detector_applies(state):
+        p = None
+    det_hi, det_lo = p is not None and p >= specialists.HIGH, p is not None and p <= specialists.LOW
+    gem_synth = claimed == "likely_synthetic" and (any(i.severity.lower() == "high" for i in ai)
+                                                   or sum(i.severity.lower() != "low" for i in ai) >= 2)
+    score = f" (detector score {p:.2f})" if p is not None else ""
     if (ela and ela.severity == "high") or (manip and manip.severity == "high" and manip.evidence and claimed == "manipulated"):
         media = Assessment(state="MANIPULATED", label="Manipulation detected",
                            summary="Signs of editing were found in a specific region of the image. This is evidence, not proof.")
-    elif synthetic and claimed == "likely_synthetic" and (any(i.severity.lower() == "high" for i in ai)
-                                                        or sum(i.severity.lower() != "low" for i in ai) >= 2):
+    elif synthetic and gem_synth and det_lo:
+        media = Assessment(state="INCONCLUSIVE", label="Evidence conflicts",
+                           summary=f"Gemini found visual indicators of AI generation, but the pretrained detector scored the image as a photograph{score}. Both are shown; neither settles it.")
+    elif synthetic and gem_synth:
         media = Assessment(state="LIKELY_SYNTHETIC", label="Likely synthetic / AI-generated",
-                           summary="Several visual indicators of AI generation were found. Pixel-based detection is unreliable, so treat this as likely, not certain.")
+                           summary=("Gemini's visual indicators and the pretrained detector agree" + score + "." if det_hi else
+                                    "Several visual indicators of AI generation were found" + score + ".")
+                                   + " Detection is unreliable, so treat this as likely, not certain.")
+    elif synthetic and det_hi and gemini_ok and claimed == "likely_authentic":
+        media = Assessment(state="INCONCLUSIVE", label="Evidence conflicts",
+                           summary=f"The pretrained detector scored the image as AI-generated{score}, but Gemini found no visual indicators. Both are shown; neither settles it.")
+    elif synthetic and det_hi:
+        media = Assessment(state="LIKELY_SYNTHETIC", label="Likely synthetic / AI-generated",
+                           summary=f"The pretrained detector scored the image as AI-generated{score}"
+                                   + (" and Gemini did not contradict it." if gemini_ok else "; Gemini's examination was unavailable, so this rests on the detector alone.")
+                                   + " Detectors are wrong on a meaningful share of images.")
     elif synthetic and gemini_ok and claimed == "likely_authentic" and not strong:
         media = Assessment(state="LIKELY_AUTHENTIC", label="Likely authentic",
-                           summary="No obvious synthetic or editing indicators were detected. A carefully made fake can still pass.")
+                           summary=("Gemini found no synthetic or editing indicators and the pretrained detector scored the image as a photograph" + score + "."
+                                    if det_lo else "No obvious synthetic or editing indicators were detected" + score + ".")
+                                   + " A carefully made fake can still pass.")
+    elif synthetic and det_lo and not gemini_ok and not strong:
+        media = Assessment(state="LIKELY_AUTHENTIC", label="Likely authentic",
+                           summary=f"The pretrained detector scored the image as a photograph{score}. Gemini's examination was unavailable, so this rests on the detector alone.")
     elif synthetic:
         why = ("Gemini's visual examination was unavailable, so only metadata and compression checks ran."
                if not gemini_ok else "The indicators found are weak or mixed.")
-        media = Assessment(state="INCONCLUSIVE", label="Inconclusive", summary=why)
+        media = Assessment(state="INCONCLUSIVE", label="Inconclusive",
+                           summary=why + (f" The pretrained detector was undecided{score}." if p is not None else ""))
     elif ela or editor:
         media = Assessment(state="INCONCLUSIVE", label="Editing traces present",
                            summary="Metadata or compression checks found traces of processing. AI generation was not assessed in this mode.")
@@ -301,7 +328,10 @@ MEDIA_RECOMMENDATION = {
 }
 
 
-def _media_axis(heading: str, claimed: str, obs: list, gemini_ok: bool, what: str) -> AxisAssessment:
+def _media_axis(heading: str, claimed: str, obs: list, gemini_ok: bool, what: str,
+                model: str = "", model_text: str = "") -> AxisAssessment:
+    """`model`: "high" when a pretrained detector strongly flags this track, "low" when it scores it as genuine,
+    "" when no detector result may be used. `model_text` is the sentence describing that result."""
     """One media question, decided here from Gemini's observations (its own label is only one input)."""
     claimed = (claimed or "").strip().lower()
     strong = [o for o in obs if o.severity.lower() != "low" and o.evidence.strip()]
@@ -312,8 +342,18 @@ def _media_axis(heading: str, claimed: str, obs: list, gemini_ok: bool, what: st
         return AxisAssessment(heading=heading, state="NOT_ASSESSED", label="Not applicable",
                               summary=f"The file has no {what} to assess.")
     if not gemini_ok:
+        if model == "high":
+            return AxisAssessment(heading=heading, state="LIKELY_SYNTHETIC", label="Possibly synthetic",
+                                  summary=f"{model_text} Gemini's examination was unavailable, so this rests on the detector alone.")
         return AxisAssessment(heading=heading, state="INCONCLUSIVE", label="Inconclusive",
-                              summary="Gemini could not examine the file, so nothing was assessed.")
+                              summary="Gemini could not examine the file." + (f" {model_text}" if model_text else " Nothing was assessed."))
+    if model == "high" and claimed in ("likely_authentic", "consistent") and not strong:
+        return AxisAssessment(heading=heading, state="INCONCLUSIVE", label="Evidence conflicts",
+                              summary=f"{model_text} Gemini observed nothing suspicious. Both are shown; neither settles it.")
+    if model == "high" and claimed not in ("manipulated", "inconsistent"):
+        return AxisAssessment(heading=heading, state="LIKELY_SYNTHETIC", label="Possibly synthetic",
+                              summary=f"{model_text}" + (f" Gemini also observed indicators{at}." if strong else " Gemini did not contradict it.")
+                                      + " Detectors are wrong on a meaningful share of files.")
     if claimed in ("manipulated", "inconsistent") and strong:
         label = "Inconsistent" if claimed == "inconsistent" else "Manipulation indicators"
         return AxisAssessment(heading=heading, state="MANIPULATED", label=label,
@@ -324,9 +364,10 @@ def _media_axis(heading: str, claimed: str, obs: list, gemini_ok: bool, what: st
     if claimed in ("likely_authentic", "consistent") and not strong:
         label = "Consistent" if claimed == "consistent" else "No indicators found"
         return AxisAssessment(heading=heading, state="LIKELY_AUTHENTIC", label=label,
-                              summary="Nothing suspicious was observed. A well-made fake can still pass, and no specialist detector was run.")
+                              summary="Nothing suspicious was observed. " + (model_text + " " if model_text else "")
+                                      + "A well-made fake can still pass.")
     return AxisAssessment(heading=heading, state="INCONCLUSIVE", label="Inconclusive",
-                          summary="The observations are weak or mixed." + at)
+                          summary="The observations are weak or mixed." + at + (f" {model_text}" if model_text else ""))
 
 
 def _assess_media(state) -> list[AxisAssessment]:
@@ -341,11 +382,21 @@ def _assess_media(state) -> list[AxisAssessment]:
     applicable = lambda v: "inconclusive" if (v or "").strip().lower() == "not_applicable" else v  # noqa: E731
     for o in obs:
         o.kind = obs_kind(o, is_audio_only)
+    out = getattr(state, "model_out", {})
+    frames = out.get("frame_scores") or []
+    hot = [x for _, x in frames if x >= specialists.HIGH]
+    v_model = ("high" if len(hot) >= 2 and len(hot) * 2 >= len(frames) else
+               "low" if frames and max(x for _, x in frames) <= 0.3 else "")
+    v_text = (f"The frame detector scored {len(hot)} of {len(frames)} sampled frames as AI-generated." if frames else "")
+    # the speech model is weak evidence (trained on replay attacks): it is reported, and never decides the state
+    ps = out.get("p_synthetic")
+    a_text = (f"The speech detector's score is {ps:.2f} (weak evidence: unproven on modern voice synthesis)." if ps is not None else "")
     axes = [
         # a video always has a picture: "not applicable" from the model is treated as "could not judge"
         _media_axis("Visual authenticity", "not_applicable" if is_audio_only else applicable(m.visual_assessment if m else ""),
-                    kinds("visual_manipulation", "visual_ai_generation"), ok, "picture"),
-        _media_axis("Audio authenticity", m.audio_assessment if m else "", kinds("audio_synthesis", "audio_edit"), ok, "audio"),
+                    kinds("visual_manipulation", "visual_ai_generation"), ok, "picture", v_model, v_text),
+        _media_axis("Audio authenticity", m.audio_assessment if m else "", kinds("audio_synthesis", "audio_edit"), ok, "audio",
+                    "", a_text),
         _media_axis("Audio-visual consistency", "not_applicable" if is_audio_only or no_audio
                     else applicable(m.av_consistency if m else ""), kinds("av_sync"), ok, "combined picture and sound"),
     ]
@@ -438,6 +489,8 @@ def build(state) -> TrustReport:
                 severity=o.severity, explanation=o.explanation, evidence=(when + o.evidence).strip() if o.evidence.strip() else "",
                 uncertainty=o.uncertainty))
     signals = merge(rule_signals, llm_signals)
+    if getattr(state, "mode", ""):  # specialist-model findings join the list (and therefore the score)
+        signals = specialists.add_model_signals(signals, specialists.model_signals(state))
 
     if state.all_urls_match_claimed:  # known-org attenuation: a real bank SMS is not a scam for sounding urgent
         signals = [s for s in signals if s.key != "url_shortener"]
@@ -486,6 +539,10 @@ def build(state) -> TrustReport:
                 claim_index=item.claim_index if 0 <= item.claim_index <= 4 else 0))
         if dropped:
             notes.append(f"{dropped} evidence item(s) were dropped because their link did not come from a search tool.")
+        if getattr(state, "mode", "") and evidence:
+            # second opinion before the verdict: sources the NLI model reads the opposite way, or that the
+            # embedding model finds off-topic, stop counting for either side
+            notes += specialists.check_evidence(state.model_runs, (ce.claim if ce else "") or state.text, evidence)
         verdict_value, confidence, vnotes = verdict(evidence, factcheck_urls)
         notes += vnotes
         if state.tool_errors:

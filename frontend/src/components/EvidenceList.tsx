@@ -74,6 +74,24 @@ export default function EvidenceList({ evidence }: Props) {
                 </span>
                 {hasRating && stance && <span className="text-xs text-muted">{stance}</span>}
               </div>
+              {(e.nli_label || e.relevance != null) && (
+                <p className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-muted">
+                  <span className="rounded-full border border-[#F472B6]/70 bg-[#F472B6]/15 px-2 py-px font-mono font-bold tracking-wider text-text">
+                    MODEL
+                  </span>
+                  {e.nli_label && (
+                    <span>
+                      NLI reads the headline as <span className="font-medium text-text">{e.nli_label}</span> ({e.nli_score.toFixed(2)})
+                    </span>
+                  )}
+                  {e.relevance != null && (
+                    <span>
+                      relevance to the claim <span className="font-medium text-text">{e.relevance.toFixed(2)}</span>
+                    </span>
+                  )}
+                </p>
+              )}
+              {e.stance_note && <p className="mt-1 text-xs text-risk-med">{e.stance_note}</p>}
               {e.quote && (
                 <blockquote className="mt-2 border-l-2 border-border pl-3 text-sm leading-relaxed text-text/90">
                   “{e.quote}”

@@ -7,11 +7,13 @@ interface Props {
 const STYLE: Record<Source, string> = {
   RULE: 'border-rule bg-rule/25',
   GEMINI: 'border-gemini bg-gemini/20',
+  MODEL: 'border-[#F472B6] bg-[#F472B6]/20',
 }
 
 const TITLE: Record<Source, string> = {
   RULE: 'Detected by a deterministic rule',
   GEMINI: 'Identified by Gemini reasoning',
+  MODEL: 'Scored by a pretrained specialist model',
 }
 
 export default function SourceBadge({ source }: Props) {

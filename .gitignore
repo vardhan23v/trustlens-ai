@@ -8,3 +8,6 @@ dist/
 db/
 .DS_Store
 trustlens_kit_1/
+
+# pretrained model weights (scripts/fetch_models.py)
+backend/models/

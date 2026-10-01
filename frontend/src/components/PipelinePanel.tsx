@@ -7,6 +7,13 @@ const STATUS_STYLE: Record<string, string> = {
   unavailable: 'border-risk-med/50 text-risk-med',
 }
 
+const MODEL_STYLE: Record<string, string> = {
+  RAN: STATUS_STYLE.done,
+  NOT_APPLICABLE: STATUS_STYLE.skipped,
+  NOT_RUN: STATUS_STYLE.skipped,
+  FAILED: STATUS_STYLE.failed,
+}
+
 const META_LABEL: Record<string, string> = {
   duration_s: 'Duration (s)',
   container: 'Container',
@@ -53,19 +60,30 @@ export default function PipelinePanel({ report }: { report: TrustReport }) {
         <div>
           <h2 className="section-title mb-1.5">Model findings</h2>
           <p className="mb-3 text-xs text-muted">
-            Specialist pretrained models and their status for this analysis. An unavailable model contributes nothing to
-            the assessment — it is not counted as evidence either way.
+            Pretrained specialist models and what each actually did on this file. A model that did not run contributes
+            nothing — it is not counted as evidence either way. Model scores are evidence, not verdicts.
           </p>
           <ul className="grid gap-2 md:grid-cols-2">
             {models.map((m) => (
               <li key={m.slot} className="rounded-lg border border-border bg-surface-2/50 px-3 py-2">
                 <p className="flex flex-wrap items-center justify-between gap-2 text-sm text-text">
                   {m.task}
-                  <span className={`rounded-full border px-2 py-px font-mono text-[10px] ${m.status === 'AVAILABLE' ? STATUS_STYLE.done : STATUS_STYLE.unavailable}`}>
-                    {m.status}
+                  <span className={`rounded-full border px-2 py-px font-mono text-[10px] ${MODEL_STYLE[m.status] ?? STATUS_STYLE.unavailable}`}>
+                    {m.status === 'RAN' ? 'MODEL RAN' : m.status}
                   </span>
                 </p>
-                {m.detail && <p className="mt-1 text-xs text-muted">{m.detail}</p>}
+                {m.candidate && <p className="mt-0.5 font-mono text-[11px] text-accent">{m.candidate}</p>}
+                {m.detail && <p className={`mt-1 text-xs ${m.status === 'RAN' ? 'text-text' : 'text-muted'}`}>{m.detail}</p>}
+                {(m.limitations ?? []).length > 0 && (
+                  <details className="mt-1.5 text-xs text-muted">
+                    <summary className="cursor-pointer select-none hover:text-text">Known limits of this model</summary>
+                    <ul className="mt-1 list-disc space-y-0.5 pl-4">
+                      {m.limitations.map((l) => (
+                        <li key={l}>{l}</li>
+                      ))}
+                    </ul>
+                  </details>
+                )}
               </li>
             ))}
           </ul>

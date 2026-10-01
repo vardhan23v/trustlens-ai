@@ -217,6 +217,109 @@ check("news text: claim checked, no media axes",
 check("neither file nor text -> 422", c.post("/api/analyze", data={"mode": "news_claim"}).status_code == 422)
 check("text too long -> 413", post_text("news_claim", "x" * 8001).status_code == 413)
 
+# ---------- specialist models: their output must reach the assessment, not only the model panel ----------
+def models_on(**fns):
+    """Pretend the given model functions are installed and return these values (inference itself is mocked)."""
+    patches = [mock.patch("app.services.specialists.registry.why_unavailable", return_value=""),
+               mock.patch("app.ml.registry.why_unavailable", return_value="")]
+    for name in ("detect_image", "read_text", "detect_speech", "transcribe", "similarity", "entailment"):
+        if name in fns:
+            patches.append(mock.patch("app.ml.models." + name, side_effect=fns[name]))
+        else:
+            patches.append(mock.patch("app.ml.models." + name, side_effect=RuntimeError("unavailable")))
+    return patches
+
+
+class on:
+    def __init__(self, **fns):
+        self.patches = models_on(**fns)
+
+    def __enter__(self):
+        for p_ in self.patches:
+            p_.start()
+
+    def __exit__(self, *a):
+        for p_ in self.patches:
+            p_.stop()
+
+
+photo_real = VisualAssessment(media_type="photo", assessment="likely_authentic", authentic_cues=["sensor noise"])
+photo_unsure = VisualAssessment(media_type="photo", assessment="inconclusive")
+doc = VisualAssessment(media_type="document", assessment="likely_authentic")
+
+with on(detect_image=lambda b: {"p_generated": 0.96}), mock.patch(P + "gemini_vision.assess_synthetic", return_value=photo_real):
+    r = post("ai_generated", IMG, "a.jpg").json()
+sig = [s for s in r["signals"] if "MODEL" in s["sources"]]
+check("detector high vs Gemini authentic -> conflict kept (INCONCLUSIVE), MODEL signal lowers the score",
+      r["overall_assessment"]["state"] == "INCONCLUSIVE" and r["overall_assessment"]["label"] == "Evidence conflicts"
+      and sig and sig[0]["key"] == "ai_generation_indicator" and r["trust_score"] < 100)
+m = next(x for x in r["specialist_models"] if x["slot"] == "image_synthetic")
+ev = next(e for e in r["evidence_signals"] if e["signal_id"] == "model-image_synthetic")
+check("detector result is an EvidenceSignal with model, finding, confidence, limitations",
+      m["status"] == "RAN" and "0.96" in m["detail"] and ev["source_type"] == "MODEL" and ev["direction"] == "CONTRADICTS"
+      and ev["model"] and ev["confidence"] and ev["limitations"])
+
+with on(detect_image=lambda b: {"p_generated": 0.96}), mock.patch(P + "gemini_vision.assess_synthetic", return_value=photo_unsure):
+    r = post("ai_generated", IMG, "a.jpg").json()
+check("detector high + Gemini undecided -> LIKELY_SYNTHETIC",
+      r["overall_assessment"]["state"] == "LIKELY_SYNTHETIC" and r["assessment_axes"][0]["confidence"] == "medium")
+
+with on(detect_image=lambda b: {"p_generated": 0.04}), mock.patch(P + "gemini_vision.assess_synthetic", return_value=photo_real):
+    r = post("ai_generated", IMG, "a.jpg").json()
+check("detector low + Gemini authentic -> LIKELY_AUTHENTIC with medium confidence",
+      r["overall_assessment"]["state"] == "LIKELY_AUTHENTIC" and r["assessment_axes"][0]["confidence"] == "medium"
+      and "0.04" in r["overall_assessment"]["summary"])
+
+with on(detect_image=lambda b: {"p_generated": 0.04}), mock.patch(P + "gemini_vision.assess_synthetic", side_effect=GeminiUnavailable("429")):
+    r = post("ai_generated", IMG, "a.jpg").json()
+check("Gemini down: the detector still gives an assessment (low confidence)",
+      r["overall_assessment"]["state"] == "LIKELY_AUTHENTIC" and "detector alone" in r["overall_assessment"]["summary"]
+      and r["gemini_error"])
+
+with on(detect_image=lambda b: {"p_generated": 0.97}), mock.patch(P + "gemini_vision.assess_synthetic", return_value=doc):
+    r = post("ai_generated", IMG, "a.jpg").json()
+check("document image: detector score is shown but not used",
+      r["overall_assessment"]["state"] == "LIKELY_AUTHENTIC" and not [s for s in r["signals"] if "MODEL" in s["sources"]]
+      and any("trained on" in n for n in r["notes"]))
+
+with on(detect_image=lambda b: {"p_generated": 0.95}), mock.patch(P + "gemini_media.assess", return_value=CLEAN_MEDIA):
+    r = post("ai_generated", VID, "v.mp4").json()
+check("video: frames flagged by the detector change the visual axis",
+      axis(r, "Visual authenticity")["label"] == "Evidence conflicts"
+      and any("MODEL" in s["sources"] and "frames" in s["evidence"] for s in r["signals"]))
+
+flip = lambda h, c: {"entailment": 0.02, "neutral": 0.03, "contradiction": 0.95, "label": "contradiction"}  # noqa: E731
+with on(similarity=lambda q, t: [0.8] * len(t), entailment=flip), \
+        mock.patch(P + "gemini_vision.extract_news_image", return_value=NEWS_IMG), \
+        mock.patch(P + "crews.run_claim_crew", side_effect=crew(support)):
+    r = post("news_claim", IMG, "n.jpg").json()
+check("NLI contradicts Gemini's 'supports' on every source -> claim is no longer SUPPORTED",
+      axis(r, "Claim assessment")["state"] != "SUPPORTED" and all(e["stance"] == "mixed" and e["nli_label"] == "contradiction" for e in r["evidence"])
+      and any("opposite ways" in n for n in r["notes"]))
+
+agree = lambda h, c: {"entailment": 0.9, "neutral": 0.08, "contradiction": 0.02, "label": "entailment"}  # noqa: E731
+with on(similarity=lambda q, t: [0.8] * len(t), entailment=agree), \
+        mock.patch(P + "gemini_vision.extract_news_image", return_value=NEWS_IMG), \
+        mock.patch(P + "crews.run_claim_crew", side_effect=crew(support)):
+    r = post("news_claim", IMG, "n.jpg").json()
+check("NLI agrees -> SUPPORTED, and the confidence basis says so",
+      axis(r, "Claim assessment")["state"] == "SUPPORTED" and "NLI model independently reads 2 of 2" in axis(r, "Claim assessment")["basis"]
+      and r["evidence"][0]["relevance"] == 0.8)
+
+whisper = lambda pcm: {"text": "This is what was said.", "segments": [{"start": 0, "end": 2, "text": "This is what was said.", "no_speech_prob": 0.01}],  # noqa: E731
+                       "language": "en", "language_probability": 0.99, "duration_s": 6.4, "speech_s": 5.0}
+with on(transcribe=whisper, detect_speech=lambda pcm: {"p_synthetic": 0.97, "windows": [0.97], "window_starts_s": [0.0]}), \
+        mock.patch(P + "gemini_media.assess", side_effect=GeminiUnavailable("429")):
+    r = post("ai_generated", AUD, "a.mp3").json()
+check("Gemini down on audio: Whisper transcript is shown, speech score reported as weak evidence",
+      "This is what was said." in r["extracted"]["extracted_text"] and "0.97" in axis(r, "Audio authenticity")["summary"]
+      and axis(r, "Audio authenticity")["state"] == "INCONCLUSIVE"
+      and any(s["key"] == "audio_anomaly" and s["severity"] == "low" for s in r["signals"]))
+
+with on():
+    r = post("ai_generated", IMG, "a.jpg")
+check("every model unavailable: analysis still completes on Gemini's failure path", r.status_code == 200)
+
 # ---------- failures ----------
 with mock.patch(P + "gemini_media.assess", side_effect=GeminiUnavailable("429 quota")):
     r = post("ai_generated", VID, "v.mp4").json()

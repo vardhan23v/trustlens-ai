@@ -11,7 +11,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from app.routes import analyze, demos, health, report
+from app.routes import analyze, demos, health, models, report
 
 logging.basicConfig(level=logging.DEBUG if settings.DEBUG else logging.INFO)
 
@@ -34,7 +34,7 @@ if os.getenv("RAILWAY_PUBLIC_DOMAIN"):
     origins.append(f"https://{os.environ['RAILWAY_PUBLIC_DOMAIN']}")
 app.add_middleware(CORSMiddleware, allow_origins=origins, allow_methods=["GET", "POST"], allow_headers=["*"])
 
-for r in (health.router, analyze.router, demos.router, report.router):
+for r in (health.router, analyze.router, demos.router, report.router, models.router):
     app.include_router(r, prefix="/api")
 
 # Production (Railway): serve the built frontend from the same origin, after the /api routes.

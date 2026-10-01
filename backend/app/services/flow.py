@@ -18,6 +18,7 @@ from app.models.llm_outputs import (ClaimEvidence, Extracted, MediaAssessment, N
 from app.models.report import Ela, Signal
 from app.rules import text_rules
 from app.services import gemini_media, gemini_text, gemini_vision, image_forensics
+from app.services import specialists
 from app.services.media import probe
 from app.services.crew import crews
 
@@ -31,6 +32,8 @@ class FlowState(BaseModel):
     stages: list[dict] = Field(default_factory=list)  # what actually ran, in order
     media_meta: dict = Field(default_factory=dict)  # container facts from ffmpeg
     sampled_frames: int = 0  # keyframes sent to Gemini instead of the whole video (0 = whole file sent)
+    model_runs: dict[str, dict] = Field(default_factory=dict)  # specialist slot -> {status, detail}
+    model_out: dict = Field(default_factory=dict)  # raw specialist-model outputs (scores, transcript, OCR text)
     media: Optional[MediaAssessment] = None  # media: Gemini's examination of the video/audio file
     media_mime: str = ""
     news_image: Optional[NewsImageExtract] = None  # claim mode with an image: OCR + image-vs-caption check
@@ -88,6 +91,13 @@ class TrustLensFlow(Flow[FlowState]):
     image_bytes: bytes = b""  # the uploaded file. Kept off the state: never serialised, never stored
     prepared: Optional[probe.Prepared] = None
 
+    def _model_stages(self) -> None:
+        """One stage line per specialist model, with what really happened."""
+        from app.ml import registry
+        status = {"RAN": "done", "NOT_APPLICABLE": "skipped", "FAILED": "failed"}
+        for slot, run in self.state.model_runs.items():
+            self._stage(f"{registry.BY_SLOT[slot].task} (model)", status.get(run["status"], "unavailable"), run["detail"])
+
     def _stage(self, name: str, status: str, detail: str = "") -> None:
         self.state.stages.append({"name": name, "status": status, "detail": detail})
 
@@ -115,6 +125,9 @@ class TrustLensFlow(Flow[FlowState]):
             except Exception as e:  # preprocessing is optional: Gemini still gets the original file
                 log.warning("media preprocessing failed: %s", e)
                 self._stage("Container metadata (ffmpeg)", "unavailable", str(e)[:120])
+            if self.prepared is not None and s.mode:
+                specialists.media(s.model_runs, s.model_out, self.prepared, s.media_mime.startswith("video/"))
+                self._model_stages()
             return
         if not (s.input_type == "image" or (s.input_type == "claim" and s.image_format)):
             return
@@ -123,6 +136,9 @@ class TrustLensFlow(Flow[FlowState]):
         self._stage("Metadata (EXIF)", "done", f"{len(s.exif_signals)} finding(s)")
         self._stage("Error level analysis", "done" if s.ela.status == "ok" else "skipped",
                     "" if s.ela.status == "ok" else "Applies to JPEG only")
+        if s.mode:
+            specialists.image(s.model_runs, s.model_out, self.image_bytes, want_ocr=s.mode == "news_claim")
+            self._model_stages()
 
     @listen(forensics)
     def vision_extract(self):
@@ -169,6 +185,8 @@ class TrustLensFlow(Flow[FlowState]):
                 log.warning("media step failed: %s", e)
                 s.crew_error = f"media: {e}"
                 self._stage("Gemini multimodal examination", "failed", "Gemini could not examine the file")
+                if s.model_out.get("asr_text"):  # the Whisper transcript still stands
+                    s.extracted = Extracted(classification=s.media_type or "audio", extracted_text=s.model_out["asr_text"])
             return
         if s.input_type == "claim" and s.image_format:
             s.caption = s.text
@@ -192,6 +210,8 @@ class TrustLensFlow(Flow[FlowState]):
             except Exception as e:
                 log.warning("news image step failed: %s", e)
                 self._stage("OCR and visual examination (Gemini)", "failed", "Gemini could not read the image")
+                if s.model_out.get("ocr_text"):  # the OCR model's reading still stands
+                    s.extracted = Extracted(classification="image", extracted_text=s.model_out["ocr_text"])
                 if not s.caption:
                     s.crew_error = f"vision: {e}"
             return
@@ -238,7 +258,8 @@ class TrustLensFlow(Flow[FlowState]):
             return  # the question is about the media itself: message/URL rules do not apply
         text = (content_text(s.extracted.extracted_text) if s.input_type == "image"
                 else s.extracted.extracted_text if s.media_mime
-                else s.news_image.extracted_text if s.news_image else s.text)
+                else s.news_image.extracted_text if s.news_image
+                else s.extracted.extracted_text or s.text)
         result = text_rules.run(text)
         if s.mode:
             self._stage("Deterministic content rules", "done", f"{len(result.signals)} finding(s) in the extracted text")

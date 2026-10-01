@@ -2,7 +2,7 @@
 
 export type Severity = 'high' | 'medium' | 'low'
 export type Category = 'image_forensics' | 'visual_analysis' | 'url_domain' | 'message_content' | 'claim_evidence'
-export type Source = 'RULE' | 'GEMINI'
+export type Source = 'RULE' | 'GEMINI' | 'MODEL'
 export type InputType = 'image' | 'text' | 'claim' | 'media'
 /** The two product modes. Sent as the `mode` form field of POST /api/analyze. */
 export type Mode = 'news_claim' | 'ai_generated'
@@ -43,8 +43,9 @@ export interface SpecialistModel {
   slot: string
   task: string
   candidate: string
-  status: string // AVAILABLE | MODEL_UNAVAILABLE
+  status: string // RAN | NOT_APPLICABLE | NOT_RUN | FAILED | MODEL_UNAVAILABLE
   detail: string
+  limitations: string[]
 }
 
 export interface EvidenceSignal {
@@ -109,6 +110,10 @@ export interface Evidence {
   source_site: string
   source_type: string // official | wire | established | factcheck | other
   claim_index: number
+  relevance: number | null // cosine similarity of the headline to the claim (embedding model)
+  nli_label: string // entailment | contradiction | neutral, or '' when the NLI model did not run
+  nli_score: number
+  stance_note: string
 }
 
 export interface ClaimStatus {

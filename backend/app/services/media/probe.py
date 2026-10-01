@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
 
+PCM_MAX_S = 180
 MAX_FRAMES = 12  # sent to Gemini; never every frame
 UNIFORM = 8
 SCENE_THRESHOLD = 0.35
@@ -29,6 +30,7 @@ class Prepared:
     frames: list[tuple[float, bytes]] = field(default_factory=list)  # (seconds, JPEG bytes), time-ordered
     scene_changes: list[float] = field(default_factory=list)
     audio: bytes = b""  # MP3, 16 kHz mono
+    pcm: object = None  # numpy float32 mono at 16 kHz (first PCM_MAX_S seconds), for the specialist audio models
     notes: list[str] = field(default_factory=list)
 
 
@@ -97,6 +99,15 @@ def prepare(data: bytes, mime: str) -> Prepared:
         out.meta = parse_meta(info.stderr.decode("utf-8", "replace"))
         if "duration_s" not in out.meta and "video_codec" not in out.meta and "audio_codec" not in out.meta:
             raise ProbeUnavailable("ffmpeg could not read the file")
+        if "audio_codec" in out.meta:
+            try:  # raw samples for the speech models; optional, so a failure here is not an error
+                raw = _run([exe, "-hide_banner", "-i", str(src), "-vn", "-ac", "1", "-ar", "16000", "-t", str(PCM_MAX_S),
+                            "-f", "f32le", "pipe:1"], timeout=40)
+                if raw.stdout:
+                    import numpy as np
+                    out.pcm = np.frombuffer(raw.stdout, dtype=np.float32)
+            except subprocess.TimeoutExpired:
+                out.notes.append("Audio decoding timed out.")
         if not mime.startswith("video/") or "video_codec" not in out.meta:
             return out
         dur = out.meta.get("duration_s") or 0.0

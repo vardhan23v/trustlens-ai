@@ -13,7 +13,7 @@ AssessmentState = Literal["LIKELY_AUTHENTIC", "LIKELY_FABRICATED", "LIKELY_SYNTH
                           "INCONCLUSIVE", "UNVERIFIED", "NOT_ASSESSED", "SUPPORTED", "CONTRADICTED",
                           "MISLEADING_CONTEXT", "EVIDENCE_UNAVAILABLE"]
 Mode = Literal["news_claim", "ai_generated"]
-Source = Literal["RULE", "GEMINI"]
+Source = Literal["RULE", "GEMINI", "MODEL"]
 
 DISCLAIMER = "Trust Score is a risk indicator, not proof of authenticity or fraud."
 
@@ -41,6 +41,11 @@ class Evidence(BaseModel):
     source_site: str = ""  # publisher site, for counting independent sources
     source_type: str = "other"  # official | wire | established | factcheck | other (rules/source_registry.json)
     claim_index: int = 0
+    # second opinion from the specialist models (None / "" when they did not run)
+    relevance: Optional[float] = None  # cosine similarity of the headline to the claim
+    nli_label: str = ""  # entailment | contradiction | neutral: headline versus claim
+    nli_score: float = 0.0
+    stance_note: str = ""  # why a source was set aside, if it was
 
 
 class ClaimStatus(BaseModel):
@@ -95,8 +100,9 @@ class SpecialistModel(BaseModel):
     slot: str
     task: str
     candidate: str = ""
-    status: str = "MODEL_UNAVAILABLE"
+    status: str = "MODEL_UNAVAILABLE"  # RAN | NOT_APPLICABLE | NOT_RUN | FAILED | MODEL_UNAVAILABLE
     detail: str = ""
+    limitations: list[str] = Field(default_factory=list)
 
 
 class AxisAssessment(Assessment):

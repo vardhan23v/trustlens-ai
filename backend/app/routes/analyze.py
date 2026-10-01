@@ -89,10 +89,10 @@ async def analyze(
                                timeout=120)
     elif mode == "ai_generated":
         state = await flow.run("media", image_bytes=data, media_mime=mime, mode=mode, media_type=media_type,
-                               timeout=120)
+                               timeout=180)
     else:
         state = await flow.run("claim", image_bytes=data, media_mime=mime, mode=mode, media_type=media_type,
-                               timeout=170)
+                               timeout=240)
     return await _finish(k, state)
 
 
