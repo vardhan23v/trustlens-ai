@@ -565,6 +565,13 @@ def build(state) -> TrustReport:
                 category="claim_evidence", sources=["RULE"],
                 explanation="A published fact-check rates this claim as false or misleading.",
                 evidence=f"{top.source}: \"{top.rating if top.rating != 'none' else top.title}\""))
+        elif verdict_value == "UNVERIFIED" and state.text.strip() and getattr(state, "mode", ""):
+            # an unconfirmed claim must not show a clean score: nothing listed supports it either
+            signals.append(Signal(
+                key="unverified_claim", title="Claim not confirmed by sources", severity="high", category="claim_evidence",
+                sources=["RULE"], explanation="No listed source settled this claim. That is not evidence it is false, "
+                                              "but it has not been confirmed either.",
+                evidence=f"{len(evidence)} source(s) found; none decisive"))
         if ce:
             what_to_verify = list(ce.what_to_verify)
             extracted = Extracted(classification="news_claim", extracted_text=state.text, claim=ce.claim,

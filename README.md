@@ -165,7 +165,7 @@ agree, or a measured forensic finding backs the state; otherwise `low`. It is ne
 
 **The 0–100 number** is a risk indicator for the content, shown beside the per-question states, not instead of them.
 Start at 100; each de-duplicated signal subtracts `PENALTIES[key] × severity` (high 1.0, medium 0.6, low 0.3), capped
-per category (image forensics 25, visual analysis 45, URL/domain 30, message content 60, claim evidence 40). Bands:
+per category (image forensics 60, visual analysis 70, URL/domain 30, message content 60, claim evidence 60). Bands:
 75–100 low, 45–74 medium, 0–44 high; a high-severity signal is never shown as low risk. Everything is in
 `rules/scoring.py`, and the report prints the full deduction table. This is explicit rules, not a learned or
 calibrated model, and it does not measure whether a claim is true.
