@@ -9,7 +9,8 @@ Severity = Literal["high", "medium", "low"]
 Category = Literal["image_forensics", "visual_analysis", "url_domain", "message_content", "claim_evidence"]
 Intent = Literal["synthetic_detection", "artifact_authenticity"]
 AssessmentState = Literal["LIKELY_AUTHENTIC", "LIKELY_FABRICATED", "LIKELY_SYNTHETIC", "MANIPULATED",
-                          "INCONCLUSIVE", "UNVERIFIED", "NOT_ASSESSED"]
+                          "INCONCLUSIVE", "UNVERIFIED", "NOT_ASSESSED", "SUPPORTED", "CONTRADICTED",
+                          "MISLEADING_CONTEXT"]
 Source = Literal["RULE", "GEMINI"]
 
 DISCLAIMER = "Trust Score is a risk indicator, not proof of authenticity or fraud."
@@ -33,6 +34,28 @@ class Evidence(BaseModel):
     rating: str = "none"
     stance: str = "unrelated"
     quote: str = ""
+    title: str = ""  # headline exactly as the feed/API returned it
+    published: str = ""  # YYYY-MM-DD from the source feed; empty = unknown (never guessed)
+    source_site: str = ""  # publisher site, for counting independent sources
+    source_type: str = "other"  # official | wire | established | factcheck | other (rules/source_registry.json)
+    claim_index: int = 0
+
+
+class ClaimStatus(BaseModel):
+    """One decomposed claim and what independent sources say about it. Decided in Python."""
+    text: str
+    dimension: str = "event"
+    status: Literal["SUPPORTED", "CONTRADICTED", "MIXED", "UNVERIFIED"] = "UNVERIFIED"
+    supporting: int = 0  # independent listed sources (one per site)
+    contradicting: int = 0
+
+
+class TimelineEvent(BaseModel):
+    date: str  # YYYY-MM-DD or "UNKNOWN"
+    source: str
+    title: str
+    stance: str
+    url: str
 
 
 class Ela(BaseModel):
@@ -64,6 +87,11 @@ class AxisAssessment(Assessment):
 class TrustReport(BaseModel):
     analysis_mode: Literal["live", "demo_cached"] = "live"
     input_type: Literal["image", "text", "claim", "media"]
+    # Claim verification: decomposed claims, dated source timeline, and the article that was fetched (if any).
+    claims: list[ClaimStatus] = Field(default_factory=list)
+    timeline: list[TimelineEvent] = Field(default_factory=list)
+    article: Optional[dict] = None
+    inputs_provided: list[str] = Field(default_factory=list)  # claim mode: text | url | image
     # Video / audio: each question answered separately (visual, audio, A/V consistency, spoken claim).
     assessment_axes: list[AxisAssessment] = Field(default_factory=list)
     # Image input only: what the user asked TrustLens to verify, and the two separate answers.

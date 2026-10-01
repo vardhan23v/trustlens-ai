@@ -40,5 +40,5 @@ def claim_verifier_agent(tools: list) -> Agent:
              "piece of evidence with its source, URL, rating and stance. Never assert a verdict yourself.",
         backstory="You are a fact-check researcher. You report only what retrieved sources say, always with links. "
                   "If the tools return nothing, you say so plainly and list what a reader should verify.",
-        llm=gemini_llm(), tools=tools, allow_delegation=False, max_iter=4, verbose=settings.DEBUG,
+        llm=gemini_llm(), tools=tools, allow_delegation=False, max_iter=5, verbose=settings.DEBUG,
     )

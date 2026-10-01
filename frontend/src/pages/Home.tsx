@@ -33,6 +33,8 @@ export default function Home() {
   const [runIntent, setRunIntent] = useState<Intent | null>(null)
   const [file, setFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [claimFile, setClaimFile] = useState<File | null>(null)
+  const [claimUrl, setClaimUrl] = useState<string | null>(null)
   const [mediaFile, setMediaFile] = useState<File | null>(null)
   const [mediaUrl, setMediaUrl] = useState<string | null>(null)
   // The demo currently loaded into an input; cleared as soon as the user edits that input.
@@ -126,6 +128,18 @@ export default function Home() {
     if (demo?.mode === 'image') setDemo(null)
   }
 
+  const onClaimFile = (f: File | null) => {
+    setClaimFile(f)
+    if (f) {
+      const url = URL.createObjectURL(f)
+      objectUrls.current.push(url)
+      setClaimUrl(url)
+    } else {
+      setClaimUrl(null)
+    }
+    if (demo?.mode === 'claim') setDemo(null)
+  }
+
   const onMediaFile = (f: File | null) => {
     setMediaFile(f)
     if (f) {
@@ -166,7 +180,7 @@ export default function Home() {
       ? !!intent && (!!file || !!activeDemoId)
       : mode === 'media'
         ? !!mediaFile
-        : currentText.trim().length > 0
+        : currentText.trim().length > 0 || (mode === 'claim' && !!claimFile)
 
   const onSubmit = () => {
     if (busy || !canSubmit) return
@@ -175,7 +189,7 @@ export default function Home() {
     } else if (mode === 'media') {
       void run({ mode, file: mediaFile })
     } else {
-      void run({ mode, text: currentText, demoId: activeDemoId })
+      void run({ mode, text: currentText, demoId: activeDemoId, file: mode === 'claim' ? claimFile : null })
     }
   }
 
@@ -201,6 +215,9 @@ export default function Home() {
           file={file}
           previewUrl={previewUrl}
           onFile={onFile}
+          claimFile={claimFile}
+          claimUrl={claimUrl}
+          onClaimFile={onClaimFile}
           mediaFile={mediaFile}
           mediaUrl={mediaUrl}
           onMediaFile={onMediaFile}

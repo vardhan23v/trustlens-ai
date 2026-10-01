@@ -36,8 +36,14 @@ export default function AssessmentPanel({ report }: { report: TrustReport }) {
     return (
       <div className="card animate-fade-up p-4 sm:p-6">
         <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-          <h2 className="text-lg font-semibold text-text">Video / Audio Trust Report</h2>
-          <p className="text-xs text-muted">Each question is answered separately</p>
+          <h2 className="text-lg font-semibold text-text">
+            {report.input_type === 'claim' ? 'Claim Verification Report' : 'Video / Audio Trust Report'}
+          </h2>
+          <p className="text-xs text-muted">
+            {(report.inputs_provided ?? []).length > 0
+              ? `Inputs: ${report.inputs_provided.join(' + ')}`
+              : 'Each question is answered separately'}
+          </p>
         </div>
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           {axes.map((a, i) => (
@@ -45,7 +51,9 @@ export default function AssessmentPanel({ report }: { report: TrustReport }) {
           ))}
         </div>
         <p className="mt-3 text-xs text-muted">
-          An authentic recording can still contain a false claim, and a synthetic voice can say something true.
+          {report.input_type === 'claim'
+            ? 'A visually authentic image does not make the claim true, and an edited image does not make every claim false.'
+            : 'An authentic recording can still contain a false claim, and a synthetic voice can say something true.'}{' '}
           TrustLens does not prove truth; it shows what supports, contradicts or remains unknown.
         </p>
       </div>

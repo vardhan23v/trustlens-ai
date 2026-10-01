@@ -17,6 +17,9 @@ interface Props {
   file: File | null
   previewUrl: string | null
   onFile: (file: File | null) => void
+  claimFile: File | null
+  claimUrl: string | null
+  onClaimFile: (file: File | null) => void
   mediaFile: File | null
   mediaUrl: string | null
   onMediaFile: (file: File | null) => void
@@ -37,7 +40,7 @@ const TABS: { id: InputType; label: string }[] = [
 
 const PLACEHOLDER: Record<'text' | 'claim', string> = {
   text: 'Paste SMS / WhatsApp / email…',
-  claim: 'Paste the viral claim or forwarded message…',
+  claim: 'Paste a headline, viral claim or forwarded message — or a link to a news article…',
 }
 
 export default function InputPanel(props: Props) {
@@ -93,12 +96,36 @@ export default function InputPanel(props: Props) {
           </div>
         ) : mode === 'media' ? (
           <MediaDrop file={props.mediaFile} previewUrl={props.mediaUrl} onFile={props.onMediaFile} disabled={busy} />
+        ) : mode === 'claim' ? (
+          <div className="space-y-3">
+            <ul className="flex flex-wrap gap-2 text-xs text-muted" aria-label="Accepted inputs">
+              {['Paste a claim', 'Paste article text', 'Enter an article URL', 'Attach a screenshot / image'].map((x) => (
+                <li key={x} className="rounded-full border border-border px-2.5 py-0.5">
+                  {x}
+                </li>
+              ))}
+            </ul>
+            <TextArea
+              value={props.text}
+              onChange={props.onTextChange}
+              placeholder={PLACEHOLDER.claim}
+              label="News claim, article text or article link to check"
+              disabled={busy}
+            />
+            <div>
+              <p className="mb-2 text-xs text-muted">
+                Optional: attach the screenshot or image being shared. With an image, the text above is treated as the
+                claim made about it; media authenticity and the claim are assessed separately.
+              </p>
+              <DropZone file={props.claimFile} previewUrl={props.claimUrl} onFile={props.onClaimFile} disabled={busy} />
+            </div>
+          </div>
         ) : (
           <TextArea
             value={props.text}
             onChange={props.onTextChange}
             placeholder={PLACEHOLDER[mode]}
-            label={mode === 'claim' ? 'News claim to check' : 'Message text to analyze'}
+            label="Message text to analyze"
             disabled={busy}
           />
         )}

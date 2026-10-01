@@ -66,6 +66,20 @@ API: `GET /api/health` · `POST /api/analyze/image` (multipart `file`) · `POST 
 Deploy: one container (`Dockerfile`) — FastAPI serves the built frontend; `railway.json` sets the health check.
 Deployed on Railway: https://trustlens-ai-production-5b04.up.railway.app
 
+## Modes
+
+| Tab | Input | What is checked |
+|---|---|---|
+| Screenshot / Image | image + chosen intent | AI / synthetic detection **or** artifact authenticity; media and artifact answered separately |
+| Message / Text | pasted text | scam and phishing rules + Gemini agents |
+| Fake News / Claim | claim, article text, article URL, and/or an image | claim decomposed into parts, evidence from Google News RSS + fact-check search, source tiers, dated timeline; with an image: Claim / Media authenticity / Context consistency |
+| Video / Audio | MP4, MOV, WebM, MP3, WAV, M4A, OGG up to 18 MB | Gemini examines picture, sound and speech; timestamped observations; visual / audio / A-V consistency / spoken claims |
+
+Not implemented, and reported as `MODEL_UNAVAILABLE` in every affected report: pretrained deepfake-video and
+voice-spoof detectors, ffmpeg frame/metadata extraction, embedding retrieval and NLI models. Source stance is read
+from headlines by Gemini; the verdict is computed in code from independent listed sources
+(`backend/app/rules/source_registry.json`). Missing evidence is never treated as evidence of falsehood.
+
 ## PDF Trust Report
 
 After any analysis, **Generate PDF Report** downloads `TrustLens_Report_<timestamp>.pdf`
@@ -114,6 +128,7 @@ The same signal found by a rule *and* by Gemini counts once and shows both badge
   low, so a real bank SMS is not flagged HIGH for sounding urgent.
 - **Graceful degradation.** If Gemini is unavailable, the report still returns rule + forensics signals with a banner; nothing is fabricated.
 - **Repeatable.** Gemini runs at temperature 0, and an identical input is answered from a short-lived in-memory cache (30 min, RAM only), so the same image gives the same report.
+- **Links.** The backend fetches a user-supplied URL only in claim mode when you submit an article link, and only public http(s) pages (private and local addresses are refused, robots.txt respected).
 - **Privacy.** Nothing is written to disk; uploads are processed in memory and sent to Gemini for analysis only. The backend never fetches user-supplied URLs.
 - Rules cover English + Hinglish patterns; other languages rely on Gemini.
 

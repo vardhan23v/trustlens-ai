@@ -113,7 +113,11 @@ def direct(report: TrustReport) -> ReportDoc:
         parts.append("Gemini reasoning was unavailable for this analysis, so only deterministic checks are included.")
 
     evidence = [f"{s.title} ({' + '.join(s.sources)}): {s.evidence}" for s in report.signals if s.evidence]
-    evidence += [f"{e.source} rated it \"{e.rating}\" ({e.stance}): {e.url}" for e in report.evidence]
+    evidence += [f"EXTERNAL SOURCE - {e.source} ({e.source_type}, {e.published or 'date unknown'}) {e.stance} the claim"
+                 + (f", rating \"{e.rating}\"" if e.rating.lower() != "none" else "") + f": {e.title or e.quote}"
+                 for e in report.evidence]
+    evidence += [f"Claim part {i}: \"{c.text}\" - {c.status} ({c.supporting} supporting, {c.contradicting} contradicting "
+                 f"independent sources)" for i, c in enumerate(report.claims, 1)]
     evidence += [f"Inconsistency noted: {i}" for i in report.inconsistencies]
     return ReportDoc(
         executive_summary=" ".join(parts), trust_score=report.trust_score, risk_level=risk_label(report),

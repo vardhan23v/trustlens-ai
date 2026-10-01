@@ -23,6 +23,13 @@ function tone(e: Evidence): Tone {
   return 'amber'
 }
 
+const TYPE_LABEL: Record<string, string> = {
+  official: 'Official source',
+  wire: 'News agency',
+  established: 'News outlet',
+  factcheck: 'Fact-checker',
+}
+
 const STANCE_LABEL: Record<string, string> = {
   supports: 'Supports the claim',
   refutes: 'Refutes the claim',
@@ -42,7 +49,12 @@ export default function EvidenceList({ evidence }: Props) {
   if (evidence.length === 0) return null
   return (
     <section aria-label="Evidence" className="card reveal p-4 sm:p-6">
-      <h2 className="section-title mb-4">Evidence from sources</h2>
+      <h2 className="section-title mb-1">
+        Evidence from external sources <span className="font-mono text-text">({evidence.length})</span>
+      </h2>
+      <p className="mb-4 text-xs text-muted">
+        Retrieved by search, not written by the model. Several items from one site count as one independent source.
+      </p>
       <ul className="space-y-3">
         {evidence.map((e, i) => {
           const hasRating = e.rating && e.rating.toLowerCase() !== 'none'
@@ -51,6 +63,12 @@ export default function EvidenceList({ evidence }: Props) {
             <li key={i} className="rounded-lg border border-border bg-bg/50 p-4">
               <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                 <span className="font-semibold text-text">{e.source || host(e.url) || 'Source'}</span>
+                {e.source_type && e.source_type !== 'other' && (
+                  <span className="rounded-full border border-accent-soft/70 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent">
+                    {TYPE_LABEL[e.source_type] ?? e.source_type}
+                  </span>
+                )}
+                <span className="font-mono text-xs text-muted">{e.published || 'date unknown'}</span>
                 <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold ${TONE[tone(e)]}`}>
                   {hasRating ? `Source rating: ${e.rating}` : stance}
                 </span>

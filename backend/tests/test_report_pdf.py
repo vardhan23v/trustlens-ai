@@ -51,7 +51,9 @@ def post_pdf(report: TrustReport):
 
 
 def main() -> None:
-    scam, claim = demo_report("scam_sms", "text"), demo_report("viral_claim", "claim")
+    scam, debunked = demo_report("scam_sms", "text"), demo_report("viral_claim", "claim")
+    claim = reporter.build(flow.run_sync("claim", text="A new tax on bicycles starts next week.", fixture={
+        "claim_evidence": {"claim": "A new tax on bicycles starts next week.", "evidence": []}, "tool_urls": {}}))
 
     # direct mode: HIGH RISK report
     r = post_pdf(scam)
@@ -66,6 +68,9 @@ def main() -> None:
     t = pdf_text(post_pdf(claim).content)
     assert "UNVERIFIED" in t and "remains unverified" in t and "DEBUNKED" not in t and "VERIFIED BY SOURCE" not in t
     print("ok UNVERIFIED")
+    t = pdf_text(post_pdf(debunked).content)
+    assert debunked.verdict == "DEBUNKED_BY_SOURCE" and "DEBUNKED BY SOURCE" in t and "EXTERNAL SOURCE" in t
+    print("ok DEBUNKED with external sources")
 
     # tampered score is refused
     bad = scam.model_copy(update={"trust_score": 95, "risk_level": "LOW"})

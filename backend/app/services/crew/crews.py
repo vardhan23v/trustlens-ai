@@ -8,7 +8,7 @@ from pydantic import BaseModel, ValidationError
 from app.config import settings
 from app.models.llm_outputs import ClaimEvidence, Extracted, SignalSet
 from app.services.crew import agents, tasks
-from app.services.crew.tools import FactCheckSearchTool, GroundedSearchTool, ToolLedger
+from app.services.crew.tools import FactCheckSearchTool, GroundedSearchTool, NewsSearchTool, ToolLedger
 
 M = TypeVar("M", bound=BaseModel)
 
@@ -83,7 +83,7 @@ def run_claim_crew(text: str) -> tuple[ClaimEvidence, ToolLedger]:
     last: Exception | None = None
     for attempt in range(2):
         ledger = ToolLedger()
-        verifier = agents.claim_verifier_agent([FactCheckSearchTool(ledger), GroundedSearchTool(ledger)])
+        verifier = agents.claim_verifier_agent([NewsSearchTool(ledger), FactCheckSearchTool(ledger), GroundedSearchTool(ledger)])
         t = tasks.claim_task(verifier, text, retry=attempt == 1)
         try:
             result = _crew([verifier], [t]).kickoff()

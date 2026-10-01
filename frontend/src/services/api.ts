@@ -94,6 +94,13 @@ export function analyzeClaim(text: string): Promise<TrustReport> {
   return postJson<TrustReport>('/analyze/claim', { text })
 }
 
+export function analyzeNews(text: string, file: File | null): Promise<TrustReport> {
+  const form = new FormData()
+  form.append('text', text)
+  if (file) form.append('file', file)
+  return request<TrustReport>('/analyze/news', { method: 'POST', body: form })
+}
+
 export function analyzeDemo(id: string): Promise<TrustReport> {
   return postJson<TrustReport>(`/analyze/demo/${encodeURIComponent(id)}`)
 }
@@ -138,6 +145,7 @@ export async function analyze(req: AnalyzeRequest): Promise<TrustReport> {
     return analyzeMedia(req.file)
   }
   const text = (req.text ?? '').trim()
+  if (req.mode === 'claim' && req.file) return analyzeNews(text, req.file)
   if (!text) throw new ApiError('Enter some text to analyze.')
   return req.mode === 'claim' ? analyzeClaim(text) : analyzeText(text)
 }

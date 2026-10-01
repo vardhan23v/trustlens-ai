@@ -3,6 +3,7 @@ import { sortSignals } from '../utils/format'
 import AgentsFootnote from './AgentsFootnote'
 import AssessmentPanel from './AssessmentPanel'
 import Caveats from './Caveats'
+import ClaimBreakdown from './ClaimBreakdown'
 import DeductionTable from './DeductionTable'
 import Disclaimer from './Disclaimer'
 import ElaCompare from './ElaCompare'
@@ -55,7 +56,7 @@ export default function ReportView({ report, originalUrl }: Props) {
               hasSignals={report.signals.length > 0}
               risk={report.risk_level}
               verdict={report.verdict}
-              assessment={report.overall_assessment}
+              assessment={report.verdict ? null : report.overall_assessment}
             />
             <div className="pt-1">
               <ModeBanner analysisMode={report.analysis_mode} geminiError={report.gemini_error} />
@@ -128,6 +129,8 @@ export default function ReportView({ report, originalUrl }: Props) {
       )}
 
       <DeductionTable signals={signals} breakdown={report.score_breakdown ?? []} score={report.trust_score} />
+
+      <ClaimBreakdown claims={report.claims ?? []} timeline={report.timeline ?? []} article={report.article ?? null} />
 
       <EvidenceList evidence={report.evidence ?? []} />
 

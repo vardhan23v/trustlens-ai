@@ -7,7 +7,9 @@ import re
 from urllib.parse import urlparse
 
 from app.models.llm_outputs import SIGNAL_KEYS, Extracted, LLMSignal
-from app.models.report import Assessment, AxisAssessment, CategoryBreakdown, Evidence, Signal, TrustReport
+from app.models.report import (Assessment, AxisAssessment, CategoryBreakdown, ClaimStatus, Evidence, Signal,
+                               TimelineEvent, TrustReport)
+from app.services.news import retrieval
 from app.rules.scoring import CATEGORY_CAPS, SEVERITY_RANK, band, category_of, penalty_for
 
 FORENSIC_KEYS = {"editing_software_exif", "exif_time_mismatch", "ela_anomaly"}  # only Python can measure these
@@ -112,8 +114,38 @@ def _is_outlet(source: str, url: str) -> bool:
     return any(o in hay for o in FACTCHECK_OUTLETS)
 
 
+LISTED = {"official", "wire", "established", "factcheck"}
+
+
+def _independent(items: list[Evidence]) -> int:
+    """Independent sources = distinct sites. Ten copies of one outlet's story count once."""
+    return len({retrieval.registrable(e.source_site) or e.source.lower() for e in items})
+
+
+def _stance_status(evidence: list[Evidence]) -> tuple[str, int, int]:
+    """SUPPORTED / CONTRADICTED / MIXED / UNVERIFIED from listed sources only (rules/source_registry.json).
+    Needs two independent listed sources, or one official source or fact-checker, on one side."""
+    listed = [e for e in evidence if e.source_type in LISTED]
+    sup = [e for e in listed if e.stance == "supports"]
+    ref = [e for e in listed if e.stance == "refutes"]
+    n_sup, n_ref = _independent(sup), _independent(ref)
+    strong = lambda items, n: n >= 2 or any(e.source_type in ("official", "factcheck") for e in items)  # noqa: E731
+    s_ok, r_ok = bool(sup) and strong(sup, n_sup), bool(ref) and strong(ref, n_ref)
+    if s_ok and r_ok:
+        return "MIXED", n_sup, n_ref
+    if r_ok and not sup:
+        return "CONTRADICTED", n_sup, n_ref
+    if s_ok and not ref:
+        return "SUPPORTED", n_sup, n_ref
+    if sup and ref:
+        return "MIXED", n_sup, n_ref
+    return "UNVERIFIED", n_sup, n_ref
+
+
 def verdict(evidence: list[Evidence], factcheck_urls: set[str]) -> tuple[str, float, list[str]]:
-    """VERIFIED/DEBUNKED only from a fact-check outlet with an explicit rating; otherwise UNVERIFIED."""
+    """VERIFIED/DEBUNKED from a fact-check outlet with an explicit rating, or from independent listed
+    sources agreeing; otherwise UNVERIFIED. Never from the model's own opinion."""
+    status, n_sup, n_ref = _stance_status([e for e in evidence if e.claim_index == 0] or evidence)
     refutes, supports = [], []
     for e in evidence:
         rating = e.rating.strip()
@@ -126,13 +158,19 @@ def verdict(evidence: list[Evidence], factcheck_urls: set[str]) -> tuple[str, fl
         elif e.stance == "supports" and VERIFY_RE.search(rating) and not HEDGE_RE.search(rating) \
                 and not DEBUNK_RE.search(rating):
             supports.append(e)
-    if refutes and supports:
-        return "UNVERIFIED", 0.3, ["Sources disagree: some fact-checks refute the claim and some support it."]
+    if (refutes and supports) or status == "MIXED":
+        return "UNVERIFIED", 0.3, ["Sources disagree: some refute the claim and some support it."]
     if refutes:
         soft = all(SOFT_RE.search(e.rating) for e in refutes)
         return "DEBUNKED_BY_SOURCE", 0.6 if soft else 0.9, []
     if supports:
         return "VERIFIED_BY_SOURCE", 0.8, []
+    if status == "CONTRADICTED":
+        return "DEBUNKED_BY_SOURCE", 0.75 if n_ref >= 2 else 0.6, [
+            f"{n_ref} independent listed source(s) contradict the claim; stance was read from their headlines."]
+    if status == "SUPPORTED":
+        return "VERIFIED_BY_SOURCE", 0.7 if n_sup >= 2 else 0.55, [
+            f"{n_sup} independent listed source(s) support the claim; stance was read from their headlines."]
     return "UNVERIFIED", 0.3, []
 
 
@@ -347,6 +385,8 @@ def build(state) -> TrustReport:
 
     extracted: Extracted = state.extracted
     evidence: list[Evidence] = []
+    claim_rows: list[ClaimStatus] = []
+    timeline: list[TimelineEvent] = []
     verdict_value = confidence = None
     what_to_verify = list(llm.what_to_verify) if llm else []
     inconsistencies = list(llm.inconsistencies) if llm else []
@@ -365,21 +405,42 @@ def build(state) -> TrustReport:
                 item.source, item.rating = meta.get("source") or item.source, meta.get("rating") or item.rating
             if item.stance == "unrelated":
                 continue
-            evidence.append(Evidence(source=item.source or urlparse(item.url).netloc, url=item.url,
-                                     rating=item.rating or "none", stance=item.stance, quote=item.quote))
+            site = meta.get("site") or item.url
+            if meta.get("origin") == "news":
+                item.source = meta.get("source") or item.source  # publisher exactly as the feed names it
+                # a rating counts only if the source's own headline uses that word; otherwise it is "none"
+                if item.rating.strip().lower() not in (meta.get("title") or "").lower():
+                    item.rating = "none"
+            evidence.append(Evidence(
+                source=item.source or urlparse(item.url).netloc, url=item.url, rating=item.rating or "none",
+                stance=item.stance, quote=item.quote, title=meta.get("title") or item.quote,
+                published=meta.get("published") or "", source_site=site,
+                source_type="factcheck" if meta.get("origin") == "factcheck" else retrieval.source_tier(site),
+                claim_index=item.claim_index if 0 <= item.claim_index <= 4 else 0))
         if dropped:
             notes.append(f"{dropped} evidence item(s) were dropped because their link did not come from a search tool.")
         verdict_value, confidence, vnotes = verdict(evidence, factcheck_urls)
         notes += vnotes
         if state.tool_errors:
             notes.append("A search tool failed during verification; results may be incomplete.")
+        notes.append("Semantic-retrieval and NLI models: MODEL_UNAVAILABLE. Each source's stance was read from its "
+                     "headline by Gemini; the verdict is computed in code from independent listed sources.")
+        for i, sc in enumerate((ce.sub_claims if ce else [])[:4], 1):
+            own = [e for e in evidence if e.claim_index == i]
+            status, n_sup, n_ref = _stance_status(own)
+            claim_rows.append(ClaimStatus(text=sc.text, dimension=sc.dimension, status=status,
+                                          supporting=n_sup, contradicting=n_ref))
+        timeline = [TimelineEvent(date=e.published or "UNKNOWN", source=e.source, title=e.title or e.quote,
+                                  stance=e.stance, url=e.url)
+                    for e in sorted(evidence, key=lambda e: e.published or "9999")][:12]
         if verdict_value == "DEBUNKED_BY_SOURCE":
-            top = next(e for e in evidence if e.stance == "refutes" and DEBUNK_RE.search(e.rating))
+            top = next((e for e in evidence if e.stance == "refutes" and DEBUNK_RE.search(e.rating)), None) or \
+                next(e for e in evidence if e.stance == "refutes")
             signals.append(Signal(
                 key="debunked_by_source", title="Debunked by fact-checker", severity="high" if confidence >= 0.9 else "medium",
                 category="claim_evidence", sources=["RULE"],
                 explanation="A published fact-check rates this claim as false or misleading.",
-                evidence=f"{top.source}: \"{top.rating}\""))
+                evidence=f"{top.source}: \"{top.rating if top.rating != 'none' else top.title}\""))
         if ce:
             what_to_verify = list(ce.what_to_verify)
             extracted = Extracted(classification="news_claim", extracted_text=state.text, claim=ce.claim,
@@ -420,6 +481,50 @@ def build(state) -> TrustReport:
     intent = overall = artifact = None
     axes: list[AxisAssessment] = []
     boosters: list[str] = []
+    if state.input_type == "claim":
+        provided = (["image"] if state.image_format else []) + (["url"] if state.article else []) + (
+            ["text"] if (state.caption if state.image_format else state.text).strip() and not state.article else [])
+        claim_axis = {
+            "DEBUNKED_BY_SOURCE": ("CONTRADICTED", "Contradicted by sources"),
+            "VERIFIED_BY_SOURCE": ("SUPPORTED", "Supported by sources"),
+        }.get(verdict_value, ("UNVERIFIED", "Unverified"))
+        n_src = _independent([e for e in evidence if e.source_type in LISTED])
+        axes.append(AxisAssessment(
+            heading="Claim assessment", state=claim_axis[0], label=claim_axis[1],
+            summary=(f"Based on {n_src} independent listed source(s)." if n_src else
+                     "No listed source confirmed or refuted the claim. Missing evidence is not evidence of falsehood.")))
+        if state.image_format:
+            ni = state.news_image
+            m, _ = _assess_image(state, signals, risk)
+            axes.append(AxisAssessment(heading="Media authenticity", state=m.state, label=m.label, summary=m.summary))
+            cons = (ni.caption_consistency if ni else "").strip().lower()
+            if ni and cons == "inconsistent" and ni.mismatches:
+                ctx = ("MISLEADING_CONTEXT", "Image does not match the claim", "; ".join(ni.mismatches[:3]))
+            elif verdict_value == "DEBUNKED_BY_SOURCE" and m.state != "MANIPULATED":
+                ctx = ("MISLEADING_CONTEXT", "Misleading context",
+                       "No editing traces were found in the image, but the claim it is used to support is "
+                       "contradicted by sources.")
+            elif verdict_value == "VERIFIED_BY_SOURCE" and cons in ("consistent", "no_caption"):
+                ctx = ("SUPPORTED", "Consistent with sources", "The claim is supported by sources and nothing visible conflicts with it.")
+            elif not ni:
+                ctx = ("INCONCLUSIVE", "Inconclusive", "Gemini could not read the image, so image and claim were not compared.")
+            else:
+                ctx = ("UNVERIFIED", "Not established",
+                       "Nothing visible contradicts the claim, but an image alone cannot show when or where it was "
+                       "taken or that the event happened.")
+            axes.append(AxisAssessment(heading="Context consistency", state=ctx[0], label=ctx[1], summary=ctx[2]))
+            if ni:
+                if ni.visual_description:
+                    notes.append("What the image shows: " + ni.visual_description.strip()[:260])
+                if ni.time_place_clues:
+                    notes.append("Visible time/place clues: " + "; ".join(ni.time_place_clues[:4]))
+                extracted.extracted_text = ni.extracted_text or extracted.extracted_text
+            caveats.append("A visually authentic image does not make the claim true, and an edited image does not make every claim false")
+        overall = Assessment(state=axes[-1].state if state.image_format and axes[-1].state == "MISLEADING_CONTEXT" else axes[0].state,
+                             label=axes[-1].label if state.image_format and axes[-1].state == "MISLEADING_CONTEXT" else axes[0].label,
+                             summary=axes[0].summary)
+    else:
+        provided = []
     if state.input_type == "media":
         axes = _assess_media(state)
         order = {"MANIPULATED": 0, "LIKELY_SYNTHETIC": 1, "INCONCLUSIVE": 2, "LIKELY_AUTHENTIC": 3}
@@ -467,7 +572,7 @@ def build(state) -> TrustReport:
 
     return TrustReport(
         analysis_mode=state.analysis_mode, input_type=state.input_type, analysis_intent=intent,
-        assessment_axes=axes,
+        assessment_axes=axes, inputs_provided=provided, claims=claim_rows, timeline=timeline, article=getattr(state, "article", None),
         overall_assessment=overall, media_assessment=media, artifact_assessment=artifact,
         confidence_boosters=boosters,
         classification=extracted.classification or "other", trust_score=trust_score, risk_level=risk,

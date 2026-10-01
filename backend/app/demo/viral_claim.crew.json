@@ -1,6 +1,6 @@
 {
- "model": "gemini-3.5-flash-lite",
- "recorded_at": "2026-10-01 11:03",
+ "model": "gemini-3.6-flash",
+ "recorded_at": "2026-10-01 14:00",
  "claim_evidence": {
   "claim": "UNESCO has declared \"Jana Gana Mana\" the best national anthem in the world.",
   "entities": [
@@ -9,16 +9,172 @@
    "India"
   ],
   "dates": [],
-  "events": [],
-  "what_to_verify": [
-   "Check official UNESCO announcements or press releases regarding national anthems.",
-   "Search for official statements from the Government of India or Ministry of Culture about UNESCO declaring 'Jana Gana Mana' the best national anthem.",
-   "Look up known viral hoaxes regarding UNESCO declaring various national anthems or national symbols as the 'best in the world'."
+  "events": [
+   "UNESCO declaration on national anthems"
   ],
-  "evidence": []
+  "what_to_verify": [
+   "Check official UNESCO press releases and statements regarding national anthems or awards.",
+   "Verify whether UNESCO maintains any system or award category for ranking or rating national anthems.",
+   "Consult independent fact-checking archives regarding the history of the viral 'UNESCO best national anthem' claim."
+  ],
+  "sub_claims": [
+   {
+    "text": "UNESCO made a declaration regarding national anthems.",
+    "dimension": "action"
+   },
+   {
+    "text": "\"Jana Gana Mana\" was named the best national anthem in the world by UNESCO.",
+    "dimension": "event"
+   }
+  ],
+  "evidence": [
+   {
+    "source": "Snopes.com",
+    "url": "https://news.google.com/rss/articles/CBMicEFVX3lxTFB3WXltWHFZazk1SE9XWmpCY3VUZzJ0RGFuSHYwZzd0QlhzSVRmempmdk1UUDFEMzlBc1hoS3ZzUG02YWN6RHVBTy0zRzEwU0lUNlRuMXJxM3ZmZXNVS3p0c2FSQXdhNHBNZUFFOWJocVo?oc=5",
+    "rating": "False",
+    "stance": "refutes",
+    "quote": "FACT CHECK: Did UNESCO Declare India's 'Jana Gana Mana' the World's Best National Anthem?",
+    "claim_index": 0
+   },
+   {
+    "source": "english.factcrescendo.com",
+    "url": "https://news.google.com/rss/articles/CBMiswFBVV95cUxOcUdsVUlzQzVUTkZ3a200LVdRRlRJOFg1S2hZcXUxRFFFS25UcS1Dam1YbkdzeFF2LUZPWk1oVDRndTdUS0hfQzFLV0hLVEtxaEI2emw5YmswODMtbVdEWURTNS1GWmJEOFRnME1lWGVxaGQxYTFCMXlWQXlRYldZb05qTjRKbEY0Vk1JX3JVYmdiU3NERGVZNkM4WWhsWGc0YkVZTnM2N3ltYUFBVW54Rlp4TQ?oc=5",
+    "rating": "False",
+    "stance": "refutes",
+    "quote": "UNESCO did not declare India's national anthem the best in the world.",
+    "claim_index": 0
+   },
+   {
+    "source": "FACTLY",
+    "url": "https://news.google.com/rss/articles/CBMimAFBVV95cUxNQS1fUjZtRGZxeEdEbHVTcWxpSWIycklWLWQ1NlVrUEJ6aFlfOE9yd1NLd2FLcktmS1JxUE9NSjcwMVZQTFoyc19uVFY1RkpGMjFZOExmQUlyMGlZeXpKM3p0Smpxbi1oNGR6OWhDZjV5TkZvQ2pHellLcEQzeENtRmpJZkZpMk1LTGxqZEFlZnA1dllMWFdjRA?oc=5",
+    "rating": "False",
+    "stance": "refutes",
+    "quote": "India’s ‘Jana Gana Mana’ was not declared as “the World’s Best Anthem” by UNESCO",
+    "claim_index": 1
+   },
+   {
+    "source": "Vishvas News Fact Check Hindi",
+    "url": "https://news.google.com/rss/articles/CBMixAFBVV95cUxQdVhKOUkyVEphRC1xdGRINWM4UzRQMDZ0OUlwSUNQZHBrZTI0R2hqMEdIUVJBMnBoa2pSOG5sd0Fna1hQNlU2b21JeTJKM0szTXlvMzlDT2RFSnE0T1JGMjFwbjlYX0NQRjhBOTVtMFFhb1pRVGt3SDN6Q0pyNklMTUZrRDZscEE2M1U2U3AyQ014b0dzRFhoZlV6SzdSM1lwb3lZQ3R5OFN1SEV3YXgzVlpIN1JDV0ZWSUJobk0yVXBLY0Z4?oc=5",
+    "rating": "False",
+    "stance": "refutes",
+    "quote": "Fact Check: UNESCO does not rank national anthem of any country, viral claim is false",
+    "claim_index": 0
+   }
+  ]
  },
- "tool_urls": {},
- "tool_errors": [
-  "grounding: Google Search grounding returned 429 (free-tier quota) when this fixture was recorded"
- ]
+ "tool_urls": {
+  "https://news.google.com/rss/articles/CBMixAFBVV95cUxQdVhKOUkyVEphRC1xdGRINWM4UzRQMDZ0OUlwSUNQZHBrZTI0R2hqMEdIUVJBMnBoa2pSOG5sd0Fna1hQNlU2b21JeTJKM0szTXlvMzlDT2RFSnE0T1JGMjFwbjlYX0NQRjhBOTVtMFFhb1pRVGt3SDN6Q0pyNklMTUZrRDZscEE2M1U2U3AyQ014b0dzRFhoZlV6SzdSM1lwb3lZQ3R5OFN1SEV3YXgzVlpIN1JDV0ZWSUJobk0yVXBLY0Z4?oc=5": {
+   "source": "Vishvas News Fact Check Hindi",
+   "rating": "none",
+   "origin": "news",
+   "title": "Fact Check: UNESCO does not rank national anthem of any country, viral claim is false",
+   "published": "2022-07-25",
+   "site": "https://www.vishvasnews.com"
+  },
+  "https://news.google.com/rss/articles/CBMicEFVX3lxTFB3WXltWHFZazk1SE9XWmpCY3VUZzJ0RGFuSHYwZzd0QlhzSVRmempmdk1UUDFEMzlBc1hoS3ZzUG02YWN6RHVBTy0zRzEwU0lUNlRuMXJxM3ZmZXNVS3p0c2FSQXdhNHBNZUFFOWJocVo?oc=5": {
+   "source": "Snopes.com",
+   "rating": "none",
+   "origin": "news",
+   "title": "FACT CHECK: Did UNESCO Declare India's 'Jana Gana Mana' the World's Best National Anthem?",
+   "published": "2016-03-14",
+   "site": "https://www.snopes.com"
+  },
+  "https://news.google.com/rss/articles/CBMirwFBVV95cUxORTREVUtsaXpWclJldnRUdzhZOXFYaWNaVThjMWoyT2VzVjMwY3dqSjNhMkxacmhNQVV4Qi1zRUtXelI3Y1ZnNFRXZ2VWQXdFN0dqVlA5eV9UU250LW4tQ3BsbGI3OWJIQUQxaVNpSmlPV0ZSc3JhQ3VIZnhJMERnTy1aTnhLakpkTE1GUXdPR3Y1eG5iNkY3YTBlYjFFMjljMVJLcmpEOTlPZU8zRTc00gG0AUFVX3lxTFB4TnpmTGw2SDV3X0NraWdkVkRQeTBLT3ZNMnRlWWhyNV9ZdUp3dWo3OWlES1BVWlRYeFlPajNZR1ZwZ3o0RmdTX0dxUnE5Z1B4ZkczQkdkcVdEM0dTSUFINXkzYlM4bVM3YUVjNHVVck12UzFCR0VnRWVsSFpXQS1MeDZtR0xQNWRWUUxCVzZKSzd5dmZBUWFQWGtZTG1ndTdJVzAybV9KdkxTUFYtSFlIVnUtWA?oc=5": {
+   "source": "BOOM Fact Check",
+   "rating": "none",
+   "origin": "news",
+   "title": "UNESCO Calls PM Modi As World's Best Prime Minister? Fake Claim Revived | BOOM",
+   "published": "2022-11-27",
+   "site": "https://www.boomlive.in"
+  },
+  "https://news.google.com/rss/articles/CBMiswFBVV95cUxOcUdsVUlzQzVUTkZ3a200LVdRRlRJOFg1S2hZcXUxRFFFS25UcS1Dam1YbkdzeFF2LUZPWk1oVDRndTdUS0hfQzFLV0hLVEtxaEI2emw5YmswODMtbVdEWURTNS1GWmJEOFRnME1lWGVxaGQxYTFCMXlWQXlRYldZb05qTjRKbEY0Vk1JX3JVYmdiU3NERGVZNkM4WWhsWGc0YkVZTnM2N3ltYUFBVW54Rlp4TQ?oc=5": {
+   "source": "english.factcrescendo.com",
+   "rating": "none",
+   "origin": "news",
+   "title": "UNESCO did not declare India's national anthem the best in the world. |",
+   "published": "2024-03-14",
+   "site": "https://english.factcrescendo.com"
+  },
+  "https://news.google.com/rss/articles/CBMi8gFBVV95cUxOOTUtRWxidmNSSzJtRGlyb1M5RHFuUGRPMGFmMmpabFV5T0RzdzlBZWZrOEQtSENsd2JQQzVkT3hEanpEX0xfTEJ2Ql90NUxWc0JzU2YzdUZQQjlJUzdHc2xleW0wcmhBX0xNbXlrSkhXeG4xUmxZQTBNWXR3bWtSbDJpR1ZDeE9WZS1zcDR0UWV0QTdzWG0xTTFfeXVLeVIzcEtSVXFEOVBWZnk0SUZtaDZoN3p1RVFsbHQ0NHBwTzZyUFMySVZHdDA4V28wZktIeTh0UEVhcEhUZW9lQjV1VGJQS3lscU1LLUp0RHIzSEJXQQ?oc=5": {
+   "source": "The Times of India",
+   "rating": "none",
+   "origin": "news",
+   "title": "FAKE ALERT: No, UNESCO did not declare Indian national anthem 'best in the world'",
+   "published": "2019-08-19",
+   "site": "https://timesofindia.indiatimes.com"
+  },
+  "https://news.google.com/rss/articles/CBMiwgFBVV95cUxPV3lua0hvOUVnRGJmTlVGbzcyRU5Ob1hFNTZWM2NhUDVEQ2JzX1YzcGdLMXZ6VnF5NFYtZTZDOEF6QTVkNEhWNG1iWDVYWlpSd0hDU3JaX2JfcW9kZVpVTXBsb24xMVBfaDdQX19OWXA0dVNKRU9hVTItRDBqOGk3VjRkUUVLdXZqMC1qNm9WVEw0aE1SVzB0bXBBUFZiTk80c1Fkb081Zk5rUnhGVWRYQ2xGSjA2c0RNemtTV0hCcVJvd9IBxwFBVV95cUxNRGtpVTdONWNyUDRXVGp4Z08tVnpBOVZ1bFJpZTlJM0QzUFA1c3BOX2s5aEFIMHE0YU94akJaUEtkX1RsUWNfMEh4U0N6dGQzSnJaeUM5Z2FPSDNqSEQ3OVJ4Y1JGb0lRenk0WTRjMGNmSTJfckdzeXlreHkyNW4wVE5SM0RNOF9fMGtDNUpMUHVCNjJVRTN5Z0duY2E4UzktdkJSM2d4Tm83R21wZ0pTVmZXWVprbjRXVG44SjJ4UGs2TDFQbUtz?oc=5": {
+   "source": "India Today",
+   "rating": "none",
+   "origin": "news",
+   "title": "Fact Check: Now JD(U) leader falls for best national anthem hoax",
+   "published": "2019-08-18",
+   "site": "https://www.indiatoday.in"
+  },
+  "https://news.google.com/rss/articles/CBMi5wFBVV95cUxQSjA0LWlMY25KQ3RZczc5RDNhWGs1TmtORUNTejlLZWxxcmVkU0hiNnp0RUNLTExLNmFIZE8tbEhabVVuVE9lX1pEcjRuSU1fd1ZYNUNFai1nbGs4YjIxZlM1X3o5RjZDRFg3ZE44a1Q5N3VGUnV5ODYyQkI5TlhNa1pzZ01lVnNqZjVhZk1xbUhWUWJpcUsxZ3JILVZTSFd6NGw0cHhqTHhsMllzNkYyVk9jMEt3dVJ2YTBBcW8zeENtakxsa21hNGwtTXh4dC14MnBSWDlRSDc3VmxJaHMteEVZaWs2aWc?oc=5": {
+   "source": "Bangalore Mirror",
+   "rating": "none",
+   "origin": "news",
+   "title": "Fake alert: No, UNESCO did not declare Indian national anthem 'best in the world'",
+   "published": "2019-08-20",
+   "site": "https://bangaloremirror.indiatimes.com"
+  },
+  "https://news.google.com/rss/articles/CBMizAFBVV95cUxPQVVXcUxqMGx6VXZyU2NKb3BSWHI4bHQ0UkVpSUQ1SjlNeW5WYlc2dWlBYV9wMkpWTVF5eGNEelRNT1V2QzRNVlVrbVc4YVNrY2hMdE9QNE51TUNrbEh6Y3p5Mk1iSkdIM2p4T2NMdk1FTmhZLTdhUkZTM2ZYQVlWRHlCbW9SeW1kN0lYV1FEckFXR3dCd3JmaU1KS0tmdWRQLWN2aC1lUFl1c2trNW1DNGNYc1otQTlGcVNhXzFTUi1HaFotMmVEQ2NaRE0?oc=5": {
+   "source": "Oneindia",
+   "rating": "none",
+   "origin": "news",
+   "title": "Fact check: Was Jana Gana Mana declared as the 'World's Best Anthem' by UNESCO in 2022?",
+   "published": "2022-06-09",
+   "site": "https://www.oneindia.com"
+  },
+  "https://news.google.com/rss/articles/CBMixwFBVV95cUxOek5aOTFiMlRrY0tnWll6dWNQc3lTQUk1TnI3Qi1uc2lpMDA2MzYtaXg0MFVyRHJRQWZSZnZkd201QjlXYWpfTHh2dllWWkpCQWZqaXlMV0UtV3gzdVBrb25UenhjNF8wSmxUeWJiVUwteVZaRXNXVjk4eVRSTUZPY1hYR0Yza09VelY2R2t0ZHVmdVJpbkFXUU5GRlBOMC0xTVJvVGpaWWlOcFZ3NEtkUC1OVHk2ZUpBOWt2QVczeXZaUXBRSng4?oc=5": {
+   "source": "The Hans India",
+   "rating": "none",
+   "origin": "news",
+   "title": "Fact check: Jana Gana Mana was not declared as the 'World's Best Anthem' by UNESCO",
+   "published": "2022-05-21",
+   "site": "https://www.thehansindia.com"
+  },
+  "https://news.google.com/rss/articles/CBMijwJBVV95cUxQUG9lbVhwMThfVFdmSkVscHR2WExGQXRUekhqX0tsUWR1RzZzNXlKUEYtTFZ2WmZtd1oyd0w2d2NMRGVtbXBaeHEycjhfV1hPWDBmQWNMVzlqcWtCSTc5NTJHZkRMSjF2YjdNRldfeC1jZmVDWWQ2bVphZ3ZnMExSbWkxYjItRExzMHRMNEJZVWRiVk5xZTRvb01xdmw1V3MyUVJaWTVORlBkaGdUZUNMU05fa2lFNlpfMDlOYVBFWHp1czhPZXpuLXdtRlY2a3ZqblM1bU9GQm0xcWpBazhESGl0UDJsanpKMnZtSng1QWZqQTJ5SC1xb2dLaHRhMEU4dFlaSW41NDJGYnpZZ2tv0gGUAkFVX3lxTE5RMTA5QkJucmtyNjh5TlVSV3pOYkZneWFJSU43QllZcHVTT2Qtc2M5UlQ5ZzVINlRjWGpSY1JEODdEZm13Y2tHUExGTy01X2tHMlJFY0xiNVRLX21nMWcyaTJQdmpXSEhVMXMxS2paTlVVV1RpR0p3S09ycnl6cFNqc0w0Q3N0SWpCTllHU1JRWFpfVjR2YzVadGNGZDEwSFMyM2JBQnFXLThRRldKUy1LdnZKTWVBUFNIX05ZX1BlRXNXT1p2RUk4UEx5LUJ0MHNXZUVLNDJCUTdOWUM4dlBFUFd6Mm5zQkQ2TW9lQWVOZmJuMXVLTERwQjA5aFU2TXdZSU5Denl6aE1fODBwb2RKX2hmOQ?oc=5": {
+   "source": "LatestLY",
+   "rating": "none",
+   "origin": "news",
+   "title": "Did UNESCO Declare Indian National Anthem Jana Gana Mana Best in The World? Old Fake News Resurfaces Thanks",
+   "published": "2019-08-18",
+   "site": "https://www.latestly.com"
+  },
+  "https://news.google.com/rss/articles/CBMimAFBVV95cUxNQS1fUjZtRGZxeEdEbHVTcWxpSWIycklWLWQ1NlVrUEJ6aFlfOE9yd1NLd2FLcktmS1JxUE9NSjcwMVZQTFoyc19uVFY1RkpGMjFZOExmQUlyMGlZeXpKM3p0Smpxbi1oNGR6OWhDZjV5TkZvQ2pHellLcEQzeENtRmpJZkZpMk1LTGxqZEFlZnA1dllMWFdjRA?oc=5": {
+   "source": "FACTLY",
+   "rating": "none",
+   "origin": "news",
+   "title": "India’s ‘Jana Gana Mana’ was not declared as “the World’s Best Anthem” by UNESCO",
+   "published": "2019-03-19",
+   "site": "https://factly.in"
+  },
+  "https://news.google.com/rss/articles/CBMiwgFBVV95cUxORVZkOUdVaG0wSDdDMTk2Q0JuSi1KTVpseUlkcUtFNXZEdGsySHdLVDVHNjhhMG9zVjNzcjBEX2l2eTkxU2hHY0hJYldvWW5hVFV3X1g2ZEZKd2dkNWRUdTAtSmpRZVN5dlZiWU5KR2JsZVJtczkybHB0V0p4MWdKN3QzNGtpalB5U1hDMzhPUlBVejRETFZtMkxsWHVoUWlOejZUMTBJbS1FNmlHNHdJUWxLLVN2b05vRFBLQUo1Y290UdIByAFBVV95cUxNZnozXzRpN3Z6bU5GdVlHNWowMEFkMWp6Um5aaWJSVVJwTjVXNmxtRldCdHZDcUZDR0RqR3JSYUpyWUVIMmlBWkdSSzNRQkdMMFpBbS1lTHpKeUlVN1l1dk5KQ21oS0pLQ1FJSVVDMzJQbG4tUHpfQ3NnTmZYb1RtZFVvaDYtYVVZaF9zLVlrZUdFbDFXSXVsaWFPU0s3dXM4OVl2bV8yejR0TXNHUXNzLWc5cmZCOGdFLU02MVJ3QjVfVDhyUmc2ag?oc=5": {
+   "source": "The Indian Express",
+   "rating": "none",
+   "origin": "news",
+   "title": "2016: Top 10 fake news forwards that we (almost) believed",
+   "published": "2016-12-27",
+   "site": "https://indianexpress.com"
+  },
+  "https://news.google.com/rss/articles/CBMirAFBVV95cUxPT2xjdmRnaF9nRENwYnVSWlBKMW9rSnRWSkhyYWVwRS13eUFwV3lqNG05NHNxeEdhTzZ3bGdEUEdodXRwa3BTaTkxNDlJellpVmx6S2xJeklEQnB3dl8tTXdtWF8wWTZ6ZWs0dkU4OUwzck9PemJ5Vjc1aTVkQ2tvSEgzWTI2N3o5QS0wYjBqMXZ2ekJETnBEUS10c0YtUWFZN0JrYlYyY1FnSHZF0gGyAUFVX3lxTFBUMTVESGRjRFlkenVheXk3aXpLZUptdXJ1cVRZeEtnU1NQYTRwMFJ1ckxmakVnYWN5ZmF4UnBqWVcyRU1RQjJSSUJLX1QxSlpfU0psLW9PVjlmX3lQSC1GakZXRzFwdUtqdEVnbjFybTgtN3c2NEFaNTkwMTZJTFlUZmZsVHhUWmVwTnZySkxabUFSRmdDYUVhN01PaDJmSFlWUHZNd0lFMksyRHpXcTAzcXc?oc=5": {
+   "source": "ThePrint",
+   "rating": "none",
+   "origin": "news",
+   "title": "UNESCO declared Indian national anthem as the best, tweets Babita Phogat",
+   "published": "2018-06-12",
+   "site": "https://theprint.in"
+  },
+  "https://news.google.com/rss/articles/CBMingFBVV95cUxPYWpiQS1kVzZia0ttZnNMNHZCRGg4MDNYQVhJUENBdWtXMnpMNlhlVkdibER2QzZTcHNoQjkxYzdmRlpkRGVNUmVfZERScGdqQzNqMk9BZnFGdU9hVFJmeVluZWlZYnE4OUIwODNoTG5VTHA3cDhudC1Ha215TmJzNUliaEMzRzExR2NxMjU4UXF3bmFJTi1XRkJyQlhDZ9IBqwFBVV95cUxQcXV0UWhMQklSdjZIM3llU0hGNFdxUzJtdEl5bGRPMEY2RUxfSzc4XzRNV2V6bm4yTjBWQnI2NjRpVDdqZVVzSGM4NTN2UEUzRWJVd2RuNVVXMTlkRHIxUFEyWkUwUVVLSGdERmVJMmVoUGdDaklpUHp2R1NrYlFtbFFUUEdKUWl2V29xb2ZabUV5MGZ1RTI3Vl91dE93SmFiV0pyNmduelAxVVE?oc=5": {
+   "source": "The Quint",
+   "rating": "none",
+   "origin": "news",
+   "title": "UNESCO Did NOT Recognise ‘Jana Gana Mana’ as ‘World’s Best Anthem’",
+   "published": "2018-07-03",
+   "site": "https://www.thequint.com"
+  }
+ },
+ "tool_errors": []
 }

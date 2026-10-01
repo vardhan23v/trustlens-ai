@@ -1,0 +1,7 @@
+{
+ "_comment": "Source tiers used as ONE signal in claim verification. A listed source is not automatically right; independence and stance still decide. Edit freely; scoring code does not hard-code any outlet.",
+ "official": ["pib.gov.in", "india.gov.in", "rbi.org.in", "mygov.in", "uidai.gov.in", "incometax.gov.in", "sebi.gov.in", "who.int", "un.org", "unesco.org", "nasa.gov", "isro.gov.in", "eci.gov.in", "mea.gov.in", "mohfw.gov.in"],
+ "wire": ["reuters.com", "apnews.com", "afp.com", "ptinews.com", "aninews.in", "bloomberg.com"],
+ "established": ["bbc.com", "bbc.co.uk", "thehindu.com", "indianexpress.com", "hindustantimes.com", "timesofindia.indiatimes.com", "indiatimes.com", "ndtv.com", "theprint.in", "thewire.in", "scroll.in", "livemint.com", "business-standard.com", "economictimes.indiatimes.com", "deccanherald.com", "news18.com", "indiatoday.in", "thequint.com", "nytimes.com", "theguardian.com", "washingtonpost.com", "aljazeera.com", "dw.com", "cnn.com", "npr.org", "telegraphindia.com", "newindianexpress.com", "firstpost.com", "moneycontrol.com"],
+ "factcheck": ["altnews.in", "boomlive.in", "factly.in", "vishvasnews.com", "newschecker.in", "factcheck.afp.com", "snopes.com", "politifact.com", "factcheck.org", "fullfact.org", "newsmeter.in", "factcrescendo.com", "thip.media", "dubawa.org", "factcheckafrica.net", "africacheck.org", "leadstories.com", "logicallyfacts.com", "dfrac.org", "youturn.in", "digiteye.in", "newsmobile.in"]
+}

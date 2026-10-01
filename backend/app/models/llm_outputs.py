@@ -55,6 +55,12 @@ class EvidenceItem(BaseModel):
     rating: str = "none"
     stance: str = "unrelated"  # supports|refutes|mixed|unrelated
     quote: str = ""
+    claim_index: int = 0  # which sub-claim (1-based) this item speaks to; 0 = the claim as a whole
+
+
+class SubClaim(BaseModel):
+    text: str = ""
+    dimension: str = "event"  # entity | action | amount | time | location | event
 
 
 class ClaimEvidence(BaseModel):
@@ -63,6 +69,7 @@ class ClaimEvidence(BaseModel):
     dates: list[str] = Field(default_factory=list)
     events: list[str] = Field(default_factory=list)
     what_to_verify: list[str] = Field(default_factory=list)
+    sub_claims: list[SubClaim] = Field(default_factory=list)
     evidence: list[EvidenceItem] = Field(default_factory=list)
 
 
@@ -84,6 +91,17 @@ class VisualAssessment(BaseModel):
     authentic_cues: list[str] = Field(default_factory=list)
     assessment: str = "inconclusive"  # likely_synthetic|likely_authentic|manipulated|inconclusive
     limitations: list[str] = Field(default_factory=list)
+
+
+class NewsImageExtract(BaseModel):
+    """Gemini's reading of an image submitted for claim verification (one call: OCR + context check)."""
+    extracted_text: str = ""  # all visible text, verbatim
+    claim_in_image: str = ""  # the factual claim the image itself makes or is used for, if any
+    visual_description: str = ""  # what is actually depicted
+    time_place_clues: list[str] = Field(default_factory=list)  # visible dates, signs, landmarks, language
+    caption_consistency: str = "no_caption"  # consistent | inconsistent | cannot_tell | no_caption
+    mismatches: list[str] = Field(default_factory=list)  # concrete conflicts between image and caption
+    visual_notes: str = ""  # visually odd regions, or "none"
 
 
 class MediaObservation(BaseModel):

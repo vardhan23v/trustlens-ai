@@ -17,6 +17,9 @@ export type AssessmentState =
   | 'INCONCLUSIVE'
   | 'UNVERIFIED'
   | 'NOT_ASSESSED'
+  | 'SUPPORTED'
+  | 'CONTRADICTED'
+  | 'MISLEADING_CONTEXT'
 
 export interface Assessment {
   state: AssessmentState
@@ -64,6 +67,35 @@ export interface Evidence {
   rating: string
   stance: string // supports|refutes|mixed|unrelated
   quote: string
+  title: string
+  published: string // YYYY-MM-DD, or '' when unknown
+  source_site: string
+  source_type: string // official | wire | established | factcheck | other
+  claim_index: number
+}
+
+export interface ClaimStatus {
+  text: string
+  dimension: string
+  status: 'SUPPORTED' | 'CONTRADICTED' | 'MIXED' | 'UNVERIFIED'
+  supporting: number
+  contradicting: number
+}
+
+export interface TimelineEvent {
+  date: string
+  source: string
+  title: string
+  stance: string
+  url: string
+}
+
+export interface Article {
+  url: string
+  headline: string
+  publisher: string
+  author: string
+  published: string
 }
 
 export interface Ela {
@@ -85,6 +117,10 @@ export interface TrustReport {
   analysis_mode: AnalysisMode
   input_type: InputType
   assessment_axes: AxisAssessment[]
+  claims: ClaimStatus[]
+  timeline: TimelineEvent[]
+  article: Article | null
+  inputs_provided: string[]
   analysis_intent: Intent | null
   overall_assessment: Assessment | null
   media_assessment: Assessment | null
